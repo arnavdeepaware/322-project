@@ -1,5 +1,6 @@
 .editor {
   display: flex;
+  margin: 50px;
   gap: 10px;
 }
 
@@ -21,6 +22,8 @@
   height: 50vh;
   resize: none;
   overflow: auto;
+  font-family: "Quicksand", sans-serif;
+  font-size: 1rem;
 }
 
 .editor-output {
