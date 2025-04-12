@@ -111,7 +111,7 @@ function App() {
 
   return (
     <div className="editor-container">
-      <h1>Text Correction Tool</h1>
+      <h1>Edit Flow</h1>
       
       <div className="editor-section">
         <div className="editor-column">
