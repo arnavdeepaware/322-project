@@ -31,3 +31,23 @@ def check_for_errors(text):
     response = response.text.replace('```json',"").replace('```',"").strip()
     response_json = json.loads(response)
     return response_json
+
+def replace_Text(text,errors):
+    prompt = """
+        You are a grammar expert. Analyze the given text and the provided errors output the corrected version of the text.
+        Provide your output as a valid JSON array in this exact format:
+
+        [
+        {{
+            "Corrected Text": The full text with all errors corrected.
+        }}
+        ]
+
+        
+        Text: "{}"
+        errors:"{}"
+        """.format(text,errors)
+    response = gemini_model.generate_content(contents=prompt)
+    response = response.text.replace('```json',"").replace('```',"").strip()
+    response_json = json.loads(response)
+    return response_json
