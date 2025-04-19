@@ -1,0 +1,22 @@
+.editor {
+  display: flex;
+  gap: 10px;
+}
+
+.editor .text-block-input {
+  width: 25vw;
+  height: 50vh;
+  resize: none;
+  border: 2px #3498db solid;
+  border-radius: 10px;
+  padding: 15px;
+  outline: none;
+  font-size: 1rem;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  overflow-y: auto;
+}
+
+.editor h2 {
+  color: #3498db;
+}
