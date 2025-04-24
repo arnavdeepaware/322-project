@@ -13,9 +13,10 @@ gemini_model = GenerativeModel("gemini-1.5-flash")
 
 def check_for_errors(text):
     prompt = """
-        You are a grammar expert. Analyze the given text for errors and suggest corrections.
-        Provide your output as a valid JSON array in this exact format:
-
+        You are a grammar expert. Analyze the given text for grammatical errors and suggest corrections.
+        IMPORTANT: Treat every occurrence of the literal token '****' as valid and part of the text. Do NOT remove, modify, or merge any '****' tokens under any circumstances, and ignore them during grammar checks.
+        Provide your output strictly as a JSON array in this exact format:
+         
         [
         {{
             "error": "the incorrect text",
@@ -34,18 +35,20 @@ def check_for_errors(text):
 
 def replace_Text(text,errors):
     prompt = """
-        You are a grammar expert. Analyze the given text and the provided errors output the corrected version of the text.
-        Provide your output as a valid JSON array in this exact format:
+        You are a grammar expert. Given the original text and a list of grammar errors, produce the fully corrected text.
+        IMPORTANT: Treat every occurrence of the literal token '****' as valid and immutable. Do NOT remove, modify, merge, or reposition any '****' tokens. They must remain in their original positions, even if the surrounding words change.
+        Provide your output strictly as a JSON array in this exact format:
 
         [
         {{
-            "Corrected Text": The full text with all errors corrected.
+            "Corrected_Text": The full text with all errors corrected.
         }}
         ]
 
-        
-        Text: "{}"
-        errors:"{}"
+        Text:
+        "{}"
+        errors:
+        "{}"
         """.format(text,errors)
     response = gemini_model.generate_content(contents=prompt)
     response = response.text.replace('```json',"").replace('```',"").strip()

@@ -5,13 +5,19 @@ function TextBlock({
   title = null,
   text = "",
   isEditable,
+  isCorrected,
   onSubmit,
+  onCorrect,
   submitLabel = "Submit Text",
+  correctLabel = "Make Corrections",
+  rejectLabel = "Reject Corrections",
 }) {
+
+  const blacklist = ["fuck"]
   const [inputValue, setInputValue] = useState(text);
 
   function handleChange(e) {
-    setInputValue(e.target.value);
+    setInputValue(replaceBlacklistedWords(e.target.value));
   }
 
   function handleSubmit(e) {
@@ -19,9 +25,23 @@ function TextBlock({
     onSubmit?.(inputValue);
   }
 
+  function handleCorrection(e){
+    e.preventDefault();
+    onCorrect?.(inputValue);
+  }
+
   useEffect(() => {
     setInputValue(text);
   }, [text]);
+
+  const replaceBlacklistedWords = (text) => {
+    let modifiedText = text;
+    blacklist.forEach((word) => {
+      const regex = new RegExp(`\\b${word}\\b`, "gi");
+      modifiedText = modifiedText.replace(regex, "*".repeat(word.length));
+    });
+    return modifiedText;
+  }
 
   return (
     <div className="text-block">
@@ -41,6 +61,11 @@ function TextBlock({
         {isEditable && (
           <button className="submit-btn" type="submit">
             {submitLabel}
+          </button>
+        )}
+        {!isEditable && !isCorrected && (
+          <button className="submit-btn" type="button" onClick={handleCorrection}>
+            {correctLabel}
           </button>
         )}
       </form>
