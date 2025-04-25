@@ -1,8 +1,5 @@
-import { useState, useRef } from "react";
 import { BrowserRouter, Routes, Route } from "react-router";
-import Editor from "./features/editor/components/Editor";
 import "./App.css";
-import TextBlock from "./components/TextBlock";
 import MainLayout from "./layouts/MainLayout";
 import EditorPage from "./pages/EditorPage";
 import HomePage from "./pages/HomePage";
