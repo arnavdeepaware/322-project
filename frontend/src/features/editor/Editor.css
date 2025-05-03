@@ -20,3 +20,33 @@
 .editor h2 {
   color: #3498db;
 }
+
+/* Highlighted suggestion spans */
+.suggestion {
+  background-color: rgba(255, 0, 0, 0.2);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 3px;
+}
+
+/* Container for highlighted text */
+.highlighted-text {
+  width: 25vw;
+  height: 50vh;
+  resize: none;
+  border: 2px #3498db solid;
+  border-radius: 10px;
+  padding: 15px;
+  outline: none;
+  font-size: 1rem;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  overflow-y: auto;
+}
+.mySuggestionHighlight {
+  background-color: rgba(255, 230, 0, 0.6);
+  cursor: pointer;
+}
+.mySuggestionHighlight:hover {
+  background-color: rgba(255, 230, 0, 0.85);
+}
