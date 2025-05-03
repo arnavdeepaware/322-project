@@ -4,6 +4,27 @@
   padding: 0;
 }
 
+.logo {
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 108px;
+  gap: 10px;
+}
+
+.logo .title {
+  font-size: 3em;
+  font-family: "Cal Sans";
+}
+
+.logo img {
+  width: 50%;
+  aspect-ratio: 1;
+  fill: white;
+  display: block;
+}
+
 body {
   margin: 0;
   background-color: whitesmoke;
@@ -13,6 +34,7 @@ header {
   background-color: rgb(18, 85, 151);
   box-sizing: border-box;
   color: white;
+  padding: 0px 40px;
 }
 
 header nav {
@@ -58,21 +80,39 @@ button {
   cursor: pointer;
 }
 
-.text-block {
+.panel {
   display: flex;
   flex-direction: column;
   background-color: white;
   padding: 20px;
   border-radius: 10px;
-  /* border: 1px solid gray; */
+  gap: 10px;
 }
 
-.text-block form {
+.panel .title {
+  color: #3498db;
+}
+
+.panel form {
   display: flex;
   flex-direction: column;
 }
 
-.text-block .submit-btn {
+.panel .submit-btn {
   margin-top: 10px;
   align-self: flex-end;
+}
+
+.panel .text-block-input {
+  width: 25vw;
+  height: 50vh;
+  resize: none;
+  border: 2px #3498db solid;
+  border-radius: 10px;
+  padding: 15px;
+  outline: none;
+  font-size: 1rem;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  overflow-y: auto;
 }

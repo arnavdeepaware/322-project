@@ -12,8 +12,7 @@ function TextBlock({
   correctLabel = "Make Corrections",
   rejectLabel = "Reject Corrections",
 }) {
-
-  const blacklist = ["fuck"]
+  const blacklist = ["fuck"];
   const [inputValue, setInputValue] = useState(text);
 
   function handleChange(e) {
@@ -25,7 +24,7 @@ function TextBlock({
     onSubmit?.(inputValue);
   }
 
-  function handleCorrection(e){
+  function handleCorrection(e) {
     e.preventDefault();
     onCorrect?.(inputValue);
   }
@@ -41,12 +40,12 @@ function TextBlock({
       modifiedText = modifiedText.replace(regex, "*".repeat(word.length));
     });
     return modifiedText;
-  }
+  };
 
   return (
-    <div className="text-block">
-      {title && <h2>{title}</h2>}
-      <form onSubmit={handleSubmit}>
+    <div className="panel">
+      {title && <h2 className="title">{title}</h2>}
+      <form name="text" onSubmit={handleSubmit}>
         {isEditable ? (
           <textarea
             className="text-block-input"
@@ -64,7 +63,11 @@ function TextBlock({
           </button>
         )}
         {!isEditable && !isCorrected && (
-          <button className="submit-btn" type="button" onClick={handleCorrection}>
+          <button
+            className="submit-btn"
+            type="button"
+            onClick={handleCorrection}
+          >
             {correctLabel}
           </button>
         )}

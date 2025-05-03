@@ -5,14 +5,18 @@ import EditorPage from "./pages/EditorPage";
 import HomePage from "./pages/HomePage";
 import AccountPage from "./pages/AccountPage";
 import TokensPage from "./pages/TokensPage";
+import DocumentsPage from "./pages/DocumentsPage";
+import LoginPage from "./pages/LoginPage";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<MainLayout />}>
           <Route index element={<HomePage />} />
           <Route path="/editor" element={<EditorPage />} />
+          <Route path="/documents" element={<DocumentsPage />} />
           <Route path="/account" element={<AccountPage />} />
           <Route path="/tokens" element={<TokensPage />} />
         </Route>

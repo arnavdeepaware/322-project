@@ -1,0 +1,60 @@
+.login-page {
+  background-color: rgb(18, 85, 151);
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.login-page main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 30px;
+}
+
+.login-page form {
+  background-color: aliceblue;
+  border-radius: 10px;
+  padding: 10px;
+  width: 25vw;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  text-align: center;
+  color: #3498db;
+}
+
+.login-page input {
+  border: 2px solid skyblue;
+  border-radius: 10px;
+  padding: 5px;
+  font-size: medium;
+}
+
+.login-page button {
+  padding: 8px;
+}
+
+.login-page .google-sign-in-btn {
+  border: 2px solid #3498db;
+  background-color: white;
+  color: #3498db;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.documents-page {
+  padding: 15px 15vw;
+}
+
+.documents-page .documents {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
