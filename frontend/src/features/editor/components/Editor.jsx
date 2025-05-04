@@ -1,7 +1,57 @@
 import React, { useState } from "react";
 import TextBlock from "../../../components/TextBlock";
-import HighlightedText from "../../../HighlightedText";
+// import HighlightedText from "../../../HighlightedText";
 import "../Editor.css";
+
+function HighlightedText({ text, errors }) {
+  // Create a pattern for finding errors
+  const errorPatterns = errors.map(error => new RegExp(error.error, 'gi'));
+  
+  // Create segments by splitting at error locations
+  let segments = [];
+  let lastIndex = 0;
+
+  // Search through the text for each error
+  errorPatterns.forEach(pattern => {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      // Push the text before the match as a segment
+      if (match.index > lastIndex) {
+        segments.push({
+          text: text.slice(lastIndex, match.index),
+          type: 'normal',
+        });
+      }
+
+      // Push the matched error as a separate segment
+      segments.push({
+        text: text.slice(match.index, match.index + match[0].length),
+        type: 'highlighted',
+      });
+
+      // Update the lastIndex to continue searching after the match
+      lastIndex = match.index + match[0].length;
+    }
+  });
+
+  // Add any remaining text after the last error
+  if (lastIndex < text.length) {
+    segments.push({
+      text: text.slice(lastIndex),
+      type: 'normal',
+    });
+  }
+
+  // Construct the JSX with segments
+  const segmentElements = segments.map((segment, i) => (
+    <span key={i} className={segment.type === 'highlighted' ? 'highlighted' : ''}>
+      {segment.text}
+    </span>
+  ));
+
+  return <TextBlock title="Corrected Text" text={segmentElements} />;
+}
+
 
 function Editor() {
   const [input, setInput] = useState("");
@@ -81,7 +131,14 @@ function Editor() {
         onSubmit={handleSubmit}
       />
 
-      {errors.length > 0 && (
+      <HighlightedText
+        text={input}
+        errors={errors}
+        acceptances={acceptances}
+        rejections={rejections}
+      />
+
+      {/* {errors.length > 0 && (
         <>
           <HighlightedText
             text={input}
@@ -90,7 +147,7 @@ function Editor() {
             onReject={handleReject}
           />
         </>
-      )}
+      )} */}
 
       {/* Optionally, show logs of acceptances/rejections */}
       {/* {acceptances.length > 0 && (
