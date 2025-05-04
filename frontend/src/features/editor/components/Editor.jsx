@@ -22,6 +22,7 @@ function Editor() {
   const handleSubmit = async (text) => {
     setInput(text);
     const data = await fetchData(text);
+    console.log(data);
     setErrors(data);
     setAcceptances([]);
     setRejections([]);
@@ -47,7 +48,10 @@ function Editor() {
     // log acceptance
     setAcceptances((prev) => [
       ...prev,
-      { original: input.slice(op.start, op.start + op.length), replacement: op.replacement },
+      {
+        original: input.slice(op.start, op.start + op.length),
+        replacement: op.replacement,
+      },
     ]);
   };
 

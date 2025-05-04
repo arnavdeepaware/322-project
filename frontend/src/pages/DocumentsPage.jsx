@@ -9,7 +9,6 @@ function DocumentsPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      console.log("Fetching documents for:", user.id);
       getDocumentsByUserId(user.id)
         .then((data) => setDocuments(data))
         .catch((err) => console.error(err));

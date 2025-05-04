@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router";
+import ProtectedRoute from "./components/ProtectedRoute";
 import "./App.css";
 import MainLayout from "./layouts/MainLayout";
 import EditorPage from "./pages/EditorPage";
@@ -13,7 +14,14 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/" element={<MainLayout />}>
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<HomePage />} />
           <Route path="/editor" element={<EditorPage />} />
           <Route path="/documents" element={<DocumentsPage />} />

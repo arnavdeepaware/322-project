@@ -1,48 +1,51 @@
-import vertexai
-from google.oauth2 import service_account
-from vertexai.preview.generative_models import GenerativeModel
-from diff_match_patch import diff_match_patch
+import os
 import json
-from flask import jsonify
+from dotenv import load_dotenv
+import openai
 
-
-PROJECT_ID = "softwaredesign-443701"  # Replace with your Project ID
-LOCATION = "us-central1"
-credentials = service_account.Credentials.from_service_account_file("backend\\vertexai_key.json")
-vertexai.init(project=PROJECT_ID, location=LOCATION, credentials=credentials)
-gemini_model = GenerativeModel("gemini-1.5-flash")
-dmp = diff_match_patch()
+# Load OpenAI API key
+load_dotenv()
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def check_for_errors(text):
-    prompt = """
-        You are a grammar expert. Correct the text below (keep any '****' tokens exactly where they are). 
-        Output ONLY the corrected text, no code fences.
-        
-        
-        Text: "{}"
-        """.format(text)
-    response = gemini_model.generate_content(contents=prompt)
-    response = response.text.replace('```json',"").replace('```',"").strip()
-    return response
+    system = (
+        "You are a grammar expert. Analyze the given text for grammatical errors and suggest corrections.\n"
+        "IMPORTANT: Treat every occurrence of the literal token '****' as valid and part of the text. Do NOT remove, modify, or merge any '****' tokens under any circumstances, and ignore them during grammar checks.\n"
+        "Provide your output strictly as a JSON array in this exact format:\n"
+        "[\n"
+        "  {\"error\": \"the incorrect text\", \"correction\": \"corrected version\", \"position\": index where the error starts}\n"
+        "]"
+    )
+    user = f"Text: \"{text}\""
+    res = openai.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user}
+        ],
+        temperature=0
+    )
+    content = res.choices[0].message.content.strip().replace('```json','').replace('```','').strip()
+    return json.loads(content)
 
-def replace_Text(text,errors):
-    prompt = """
-        You are a grammar expert. Given the original text and a list of grammar errors, produce the fully corrected text.
-        IMPORTANT: Treat every occurrence of the literal token '****' as valid and immutable. Do NOT remove, modify, merge, or reposition any '****' tokens. They must remain in their original positions, even if the surrounding words change.
-        Provide your output strictly as a JSON array in this exact format:
 
-        [
-        {{
-            "Corrected_Text": The full text with all errors corrected.
-        }}
-        ]
-
-        Text:
-        "{}"
-        errors:
-        "{}"
-        """.format(text,errors)
-    response = gemini_model.generate_content(contents=prompt)
-    response = response.text.replace('```json',"").replace('```',"").strip()
-    response_json = json.loads(response)
-    return response_json
+def replace_Text(text, errors):
+    system = (
+        "You are a grammar expert. Given the original text and a list of grammar errors, produce the fully corrected text.\n"
+        "IMPORTANT: Treat every occurrence of the literal token '****' as valid and immutable. Do NOT remove, modify, merge, or reposition any '****' tokens. They must remain in their original positions, even if the surrounding words change.\n"
+        "Provide your output strictly as a JSON array in this exact format:\n"
+        "[\n"
+        "  { \"Corrected_Text\": The full text with all errors corrected. }\n"
+        "]"
+    )
+    user = f"Text: \"{text}\"\nerrors: {json.dumps(errors)}"
+    res = openai.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user}
+        ],
+        temperature=0
+    )
+    content = res.choices[0].message.content.strip().replace('```json','').replace('```','').strip()
+    return json.loads(content)

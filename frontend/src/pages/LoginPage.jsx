@@ -7,14 +7,9 @@ function LoginPage() {
   const navigate = useNavigate();
 
   function handleGoogleSignIn() {
-    signInWithGoogle()
-      .then((data) => {
-        console.log(data);
-        // navigate("/");
-      })
-      .catch((error) => {
-        console.error("Error during sign-in:", error);
-      });
+    signInWithGoogle().catch((error) => {
+      console.error("Error during sign-in:", error);
+    });
   }
 
   return (
