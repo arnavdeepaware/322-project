@@ -1,57 +1,27 @@
 import React, { useState } from "react";
 import TextBlock from "../../../components/TextBlock";
-// import HighlightedText from "../../../HighlightedText";
+import { fetchErrors, getCorrectionSegments } from "./editorUtils";
 import "../Editor.css";
 
-function HighlightedText({ text, errors }) {
-  // Create a pattern for finding errors
-  const errorPatterns = errors.map(error => new RegExp(error.error, 'gi'));
-  
-  // Create segments by splitting at error locations
-  let segments = [];
-  let lastIndex = 0;
+function HighlightedText({ text, errors, selectedError }) {
+  const segments = getCorrectionSegments(text, errors);
+  const segmentSpans = segments.map((segment, i) =>
+    i === 2 * selectedError + 1 ? (
+      <span key={i} className="highlighted selected">
+        {segment.text}
+      </span>
+    ) : (
+      <span key={i} className={segment.type === "error" ? "highlighted" : ""}>
+        {segment.text}
+      </span>
+    )
+  );
 
-  // Search through the text for each error
-  errorPatterns.forEach(pattern => {
-    let match;
-    while ((match = pattern.exec(text)) !== null) {
-      // Push the text before the match as a segment
-      if (match.index > lastIndex) {
-        segments.push({
-          text: text.slice(lastIndex, match.index),
-          type: 'normal',
-        });
-      }
-
-      // Push the matched error as a separate segment
-      segments.push({
-        text: text.slice(match.index, match.index + match[0].length),
-        type: 'highlighted',
-      });
-
-      // Update the lastIndex to continue searching after the match
-      lastIndex = match.index + match[0].length;
-    }
-  });
-
-  // Add any remaining text after the last error
-  if (lastIndex < text.length) {
-    segments.push({
-      text: text.slice(lastIndex),
-      type: 'normal',
-    });
-  }
-
-  // Construct the JSX with segments
-  const segmentElements = segments.map((segment, i) => (
-    <span key={i} className={segment.type === 'highlighted' ? 'highlighted' : ''}>
-      {segment.text}
-    </span>
-  ));
-
-  return <TextBlock title="Corrected Text" text={segmentElements} />;
+  return (
+    <TextBlock title="Corrected Text" text={segmentSpans}>
+    </TextBlock>
+  );
 }
-
 
 function Editor() {
   const [input, setInput] = useState("");
@@ -59,19 +29,9 @@ function Editor() {
   const [acceptances, setAcceptances] = useState([]);
   const [rejections, setRejections] = useState([]);
 
-  const fetchData = async (text) => {
-    const response = await fetch("http://localhost:5000/check", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
-    const data = await response.json();
-    return data;
-  };
-
   const handleSubmit = async (text) => {
     setInput(text);
-    const data = await fetchData(text);
+    const data = await fetchErrors(text);
     console.log(data);
     setErrors(data);
     setAcceptances([]);
@@ -132,48 +92,12 @@ function Editor() {
       />
 
       <HighlightedText
-        text={input}
+        text={errors.length === 0 ? "" : input}
         errors={errors}
+        selectedError={2}
         acceptances={acceptances}
         rejections={rejections}
       />
-
-      {/* {errors.length > 0 && (
-        <>
-          <HighlightedText
-            text={input}
-            ops={errors}
-            onAccept={handleAccept}
-            onReject={handleReject}
-          />
-        </>
-      )} */}
-
-      {/* Optionally, show logs of acceptances/rejections */}
-      {/* {acceptances.length > 0 && (
-        <div className="log">
-          <h3>Accepted Corrections</h3>
-          <ul>
-            {acceptances.map((a, idx) => (
-              <li key={idx}>
-                "{a.original}" → "{a.replacement}"
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {rejections.length > 0 && (
-        <div className="log">
-          <h3>Rejected Corrections</h3>
-          <ul>
-            {rejections.map((r, idx) => (
-              <li key={idx}>
-                "{r.original}" (suggested "{r.replacement}") — reason: {r.reason}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )} */}
     </div>
   );
 }

@@ -11,6 +11,7 @@ function TextBlock({
   submitLabel = "Submit Text",
   correctLabel = "Make Corrections",
   rejectLabel = "Reject Corrections",
+  children
 }) {
   const blacklist = ["fuck"];
   const [inputValue, setInputValue] = useState(text);
@@ -71,6 +72,7 @@ function TextBlock({
             {correctLabel}
           </button>
         )}
+        {children}
       </form>
     </div>
   );

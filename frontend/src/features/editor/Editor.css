@@ -44,6 +44,10 @@
   overflow-y: auto;
 }
 
+.selected {
+  background-color: rgba(255, 230, 0, 0.6);
+  cursor: pointer;
+}
 
 .mySuggestionHighlight {
   background-color: rgba(255, 230, 0, 0.6);
