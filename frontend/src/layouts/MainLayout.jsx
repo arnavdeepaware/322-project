@@ -1,5 +1,6 @@
 import React from "react";
 import { Outlet, Link } from "react-router";
+import Logo from "../components/Logo";
 import accountCircle from "../assets/account_circle.svg";
 
 function Header() {
@@ -12,6 +13,9 @@ function Header() {
           </li>
           <li>
             <Link to="/editor">Editor</Link>
+          </li>
+          <li>
+            <Link to="/documents">Documents</Link>
           </li>
         </ul>
         <ul className="right-links">
