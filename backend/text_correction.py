@@ -1,48 +1,58 @@
-import vertexai
-from google.oauth2 import service_account
-from vertexai.preview.generative_models import GenerativeModel
-from diff_match_patch import diff_match_patch
+import os
 import json
-from flask import jsonify
+from dotenv import load_dotenv, find_dotenv
+import openai
 
-
-PROJECT_ID = "softwaredesign-443701"  # Replace with your Project ID
-LOCATION = "us-central1"
-credentials = service_account.Credentials.from_service_account_file("backend\\vertexai_key.json")
-vertexai.init(project=PROJECT_ID, location=LOCATION, credentials=credentials)
-gemini_model = GenerativeModel("gemini-1.5-flash")
-dmp = diff_match_patch()
+# Load OpenAI API key from root .env file
+load_dotenv(find_dotenv())
+# Verify API key
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    raise EnvironmentError("OPENAI_API_KEY not found. Please set it in the .env file.")
+openai.api_key = api_key
 
 def check_for_errors(text):
-    prompt = """
-        You are a grammar expert. Correct the text below (keep any '****' tokens exactly where they are). 
-        Output ONLY the corrected text, no code fences.
-        
-        
-        Text: "{}"
-        """.format(text)
-    response = gemini_model.generate_content(contents=prompt)
-    response = response.text.replace('```json',"").replace('```',"").strip()
-    return response
+    system = (
+        "You are an expert copy‑editor. Your job is to PROOFREAD and CORRECT every spelling, " 
+        "grammar, and punctuation mistake in the user’s text. You MUST preserve any '****' tokens " 
+        "verbatim and ignore them for error detection. Output ONLY the fully corrected text, with no "
+        "explanations, labels, or code fences.\n\n"
+        "EXAMPLES:\n"
+        "Input: \"Hlleo, wrld!\"\n"
+        "Output: \"Hello, world!\"\n\n"
+        "Input: \"I cant go to the party\"\n"
+        "Output: \"I can't go to the party.\"\n\n"
+    )
+    user = text
+    res = openai.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user}
+        ],
+        temperature=0
+    )
+    content = res.choices[0].message.content.strip().replace('```json','').replace('```','').strip()
+    return content
 
-def replace_Text(text,errors):
-    prompt = """
-        You are a grammar expert. Given the original text and a list of grammar errors, produce the fully corrected text.
-        IMPORTANT: Treat every occurrence of the literal token '****' as valid and immutable. Do NOT remove, modify, merge, or reposition any '****' tokens. They must remain in their original positions, even if the surrounding words change.
-        Provide your output strictly as a JSON array in this exact format:
 
-        [
-        {{
-            "Corrected_Text": The full text with all errors corrected.
-        }}
-        ]
-
-        Text:
-        "{}"
-        errors:
-        "{}"
-        """.format(text,errors)
-    response = gemini_model.generate_content(contents=prompt)
-    response = response.text.replace('```json',"").replace('```',"").strip()
-    response_json = json.loads(response)
-    return response_json
+# def replace_Text(text, errors):
+#     system = (
+#         "You are a grammar expert. Given the original text and a list of grammar errors, produce the fully corrected text.\n"
+#         "IMPORTANT: Treat every occurrence of the literal token '****' as valid and immutable. Do NOT remove, modify, merge, or reposition any '****' tokens. They must remain in their original positions, even if the surrounding words change.\n"
+#         "Provide your output strictly as a JSON array in this exact format:\n"
+#         "[\n"
+#         "  { \"Corrected_Text\": The full text with all errors corrected. }\n"
+#         "]"
+#     )
+#     user = f"Text: \"{text}\"\nerrors: {json.dumps(errors)}"
+#     res = openai.chat.completions.create(
+#         model="gpt-3.5-turbo",
+#         messages=[
+#             {"role": "system", "content": system},
+#             {"role": "user", "content": user}
+#         ],
+#         temperature=0
+#     )
+#     content = res.choices[0].message.content.strip().replace('```json','').replace('```','').strip()
+#     return json.loads(content)

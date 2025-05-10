@@ -1,4 +1,5 @@
 flask
 flask_cors
-dotenv
+python-dotenv
 openai
+diff-match-patch

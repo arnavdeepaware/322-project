@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from text_correction import check_for_errors, replace_Text
+from text_correction import check_for_errors
 from flask_cors import CORS
 from diff_match_patch import diff_match_patch
 

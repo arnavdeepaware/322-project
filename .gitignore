@@ -1,1 +1,3 @@
 backend/vertexai_key.json
+*.env
+frontend/.env
