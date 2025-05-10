@@ -114,10 +114,10 @@ function Editor() {
         onSubmit={handleSave}
         submitLabel="Save Text"
         buttons={[
-          <button key="accept" type="button" onClick={handleAccept}>
+          <button className="accept-btn" key="accept" type="button" onClick={handleAccept}>
             Accept
           </button>,
-          <button key="reject" type="button" onClick={handleReject}>
+          <button className="reject-btn" key="reject" type="button" onClick={handleReject}>
             Reject
           </button>,
         ]}
