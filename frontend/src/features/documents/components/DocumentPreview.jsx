@@ -11,6 +11,3 @@ function DocumentPreview({ document }) {
 }
 
 export default DocumentPreview;
-{
-  document;
-}

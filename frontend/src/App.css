@@ -49,6 +49,13 @@
   gap: 10px;
 }
 
+.editor-page {
+  height: 90vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .documents-page {
   padding: 15px 15vw;
 }
@@ -57,4 +64,29 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.tokens-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 90vh;
+}
+
+.tokens-page main {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  width: 75vw;
+}
+
+.tokens-page .tokens-table {
+  text-align: center;
+  border-radius: 30px;
+  padding: 10px;
+}
+
+.tokens-page .tokens-table td {
+  width: 50%;
+  padding: 10px;
 }

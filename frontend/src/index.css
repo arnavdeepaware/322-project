@@ -61,13 +61,6 @@ header {
   font-weight: bold;
 }
 
-.editor-page {
-  height: 90vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
 button {
   background-color: #3498db;
   color: white;
@@ -98,10 +91,12 @@ button {
   flex-direction: column;
 }
 
-.panel .submit-btn {
-  margin-top: 10px;
-  align-self: flex-end;
-}
+.panel .buttons {
+  display: flex;
+  margin: 10px 0px;
+  gap: 10px;
+  justify-content: flex-end;
+} 
 
 .panel .text-block-input {
   width: 25vw;

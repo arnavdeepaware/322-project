@@ -28,3 +28,25 @@ export async function getDocumentsByUserId(id) {
 
   return data;
 }
+
+export async function incrementTokens(amount) {
+  const { error } = await supabase.rpc("increment_tokens", { k: amount });
+
+  if (error) {
+    console.error("Failed to increment tokens:", error.message);
+  }
+}
+
+export async function createDocument(userId, text) {
+  const { data, error } = await supabase
+    .from("documents")
+    .insert([{ owner_id: userId, content: text }])
+    .select();
+
+  if (error) {
+    console.error("Error creating document:", error);
+    return null;
+  }
+
+  return data[0];
+}

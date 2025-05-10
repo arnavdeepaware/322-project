@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
+import { useUser } from "../../../context/UserContext";
 import { produce } from "immer";
 import TextBlock from "../../../components/TextBlock";
 import { fetchErrors, getCorrectionSegments } from "./editorUtils";
+import { createDocument } from "../../../supabaseClient";
 import "../Editor.css";
 
 function HighlightedText({ segments, selectedError }) {
@@ -42,6 +44,7 @@ function HighlightedText({ segments, selectedError }) {
 }
 
 function Editor() {
+  const { user } = useUser();
   const [input, setInput] = useState("");
   const [segments, setSegments] = useState([]);
   const [selectedError, setSelectedError] = useState(0);
@@ -75,6 +78,17 @@ function Editor() {
     setSelectedError((prev) => prev + 1);
   }
 
+  function handleSave() {
+    const modifiedText = segments.map((segment) =>
+      segment.type === "normal" || segment.status !== "accepted"
+        ? segment.text
+        : segment.correction
+    ).join("");
+
+    console.log(modifiedText);
+    createDocument(user.id, modifiedText)
+  }
+
   useEffect(() => {
     console.log(segments);
   }, [segments]);
@@ -86,6 +100,7 @@ function Editor() {
         text={input}
         isEditable={true}
         onSubmit={handleSubmit}
+        submitLabel="Correct"
       />
 
       <TextBlock
@@ -94,10 +109,17 @@ function Editor() {
           <HighlightedText segments={segments} selectedError={selectedError} />
         }
         isEditable={false}
-      >
-        <button onClick={handleAccept}>Accept</button>
-        <button onClick={handleReject}>Reject</button>
-      </TextBlock>
+        onSubmit={handleSave}
+        submitLabel="Save Text"
+        buttons={[
+          <button key="accept" onClick={handleAccept}>
+            Accept
+          </button>,
+          <button key="reject" onClick={handleReject}>
+            Reject
+          </button>,
+        ]}
+      ></TextBlock>
     </div>
   );
 }

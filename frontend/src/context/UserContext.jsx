@@ -1,11 +1,34 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { supabase } from "../supabaseClient"; // adjust path as needed
+import { supabase, incrementTokens } from "../supabaseClient"; // adjust path as needed
 
 const UserContext = createContext();
 
 export function UserProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [tokens, setTokens] = useState(0);
+
+  function handleTokenChange(k) {
+    setTokens((prev) => prev + k);
+    incrementTokens(k);
+  }
+
+  const fetchTokenBalance = async (userId) => {
+    console.log("User id being used is", userId)
+
+    const { data, error } = await supabase
+      .from("users")
+      .select("tokens")
+      .eq("id", userId)
+      .single()
+
+
+    if (error) {
+      console.error("Error fetching token balance:", error.message);
+    } else {
+      setTokens(data?.tokens || 0); // Set the token balance
+    }
+  };
 
   useEffect(() => {
     // Get current session/user on mount
@@ -15,6 +38,10 @@ export function UserProvider({ children }) {
       } = await supabase.auth.getSession();
       setUser(session?.user || null);
       setLoading(false);
+
+      if (session?.user) {
+        fetchTokenBalance(session.user.id);
+      }
     };
 
     getUser();
@@ -23,6 +50,11 @@ export function UserProvider({ children }) {
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user || null);
+        if (session?.user) {
+          fetchTokenBalance(session.user.id);
+        } else {
+          setTokens(0);
+        }
       }
     );
 
@@ -30,7 +62,7 @@ export function UserProvider({ children }) {
   }, []);
 
   return (
-    <UserContext.Provider value={{ user, loading }}>
+    <UserContext.Provider value={{ user, loading, tokens, handleTokenChange }}>
       {children}
     </UserContext.Provider>
   );
