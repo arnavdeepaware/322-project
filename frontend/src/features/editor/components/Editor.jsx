@@ -1,86 +1,83 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { produce } from "immer";
 import TextBlock from "../../../components/TextBlock";
 import { fetchErrors, getCorrectionSegments } from "./editorUtils";
 import "../Editor.css";
 
-function HighlightedText({ text, errors, selectedError }) {
-  const segments = getCorrectionSegments(text, errors);
-  const segmentSpans = segments.map((segment, i) =>
-    i === 2 * selectedError + 1 ? (
-      <span key={i} className="highlighted selected">
-        {segment.text}
-      </span>
-    ) : (
-      <span key={i} className={segment.type === "error" ? "highlighted" : ""}>
-        {segment.text}
-      </span>
-    )
-  );
+function HighlightedText({ segments, selectedError }) {
+  const segmentSpans = segments.map((segment, i) => {
+    let spanContent;
+    let spanClass = "";
 
-  return (
-    <TextBlock title="Corrected Text" text={segmentSpans}>
-    </TextBlock>
-  );
+    switch (true) {
+      case i === 2 * selectedError + 1:
+        spanContent = segment.correction;
+        spanClass = "selected";
+        break;
+      case segment.type === "error" && segment.status === "pending":
+        spanContent = segment.correction;
+        spanClass = "highlighted";
+        break;
+      case segment.type == "error" && segment.status === "accepted":
+        spanContent = segment.correction;
+        spanClass = "accepted";
+        break;
+      case segment.type == "error" && segment.status === "rejected":
+        spanContent = segment.text;
+        spanClass = "rejected";
+        break;
+      default:
+        spanContent = segment.text;
+        break;
+    }
+
+    return (
+      <span key={i} className={spanClass}>
+        {spanContent}
+      </span>
+    );
+  });
+
+  return <div className="segments">{segmentSpans}</div>;
 }
 
 function Editor() {
   const [input, setInput] = useState("");
-  const [errors, setErrors] = useState([]); // ops for highlighting
-  const [acceptances, setAcceptances] = useState([]);
-  const [rejections, setRejections] = useState([]);
+  const [segments, setSegments] = useState([]);
+  const [selectedError, setSelectedError] = useState(0);
 
   const handleSubmit = async (text) => {
     setInput(text);
-    const data = await fetchErrors(text);
-    console.log(data);
-    setErrors(data);
-    setAcceptances([]);
-    setRejections([]);
+    const errors = await fetchErrors(text);
+    setSegments(getCorrectionSegments(text, errors));
+    setSelectedError(0);
   };
 
-  // accept handler applies replacement to `input` and logs
-  const handleAccept = (i) => {
-    const op = errors[i];
-    // apply to input
-    const before = input.slice(0, op.start);
-    const after = input.slice(op.start + op.length);
-    const newText = before + op.replacement + after;
-    setInput(newText);
-    // shift remaining error ops
-    const delta = op.replacement.length - op.length;
-    const updatedErrors = errors
-      .filter((_, idx) => idx !== i)
-      .map((e) => ({
-        ...e,
-        start: e.start > op.start ? e.start + delta : e.start,
-      }));
-    setErrors(updatedErrors);
-    // log acceptance
-    setAcceptances((prev) => [
-      ...prev,
-      {
-        original: input.slice(op.start, op.start + op.length),
-        replacement: op.replacement,
-      },
-    ]);
-  };
+  function handleAccept() {
+    if (2 * selectedError + 1 >= segments.length) return;
 
-  // reject handler prompts for reason and logs
-  const handleReject = (i) => {
-    const op = errors[i];
-    const reason = window.prompt("Reason for rejection:");
-    if (!reason) return;
-    setRejections((prev) => [
-      ...prev,
-      {
-        original: input.slice(op.start, op.start + op.length),
-        replacement: op.replacement,
-        reason,
-      },
-    ]);
-    // remove the op
-    setErrors((prev) => prev.filter((_, idx) => idx !== i));
-  };
+    setSegments((prev) =>
+      produce(prev, (draft) => {
+        draft[2 * selectedError + 1].status = "accepted";
+      })
+    );
+    setSelectedError((prev) => prev + 1);
+  }
+
+  function handleReject() {
+    if (2 * selectedError + 1 >= segments.length) return;
+
+    setSegments((prev) =>
+      produce(prev, (draft) => {
+        draft[2 * selectedError + 1].status = "rejected";
+      })
+    );
+    setSelectedError((prev) => prev + 1);
+  }
+
+  useEffect(() => {
+    console.log(segments);
+  }, [segments]);
 
   return (
     <div className="editor">
@@ -91,13 +88,16 @@ function Editor() {
         onSubmit={handleSubmit}
       />
 
-      <HighlightedText
-        text={errors.length === 0 ? "" : input}
-        errors={errors}
-        selectedError={2}
-        acceptances={acceptances}
-        rejections={rejections}
-      />
+      <TextBlock
+        title="Corrected Text"
+        text={
+          <HighlightedText segments={segments} selectedError={selectedError} />
+        }
+        isEditable={false}
+      >
+        <button onClick={handleAccept}>Accept</button>
+        <button onClick={handleReject}>Reject</button>
+      </TextBlock>
     </div>
   );
 }

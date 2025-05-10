@@ -32,6 +32,8 @@ export function getCorrectionSegments(text, errors) {
     segments.push({
       text: text.slice(errorStart, errorStart + error.length),
       type: "error",
+      correction: errors[errorIndex].correction,
+      status: "pending"
     });
 
     textIndex = errorStart + error.length;

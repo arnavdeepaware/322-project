@@ -22,8 +22,8 @@
 }
 
 /* Highlighted suggestion spans */
-.highlighted {
-  background-color: rgba(255, 0, 0, 0.2);
+.highlighted, .selected {
+  background-color: rgba(0, 255, 0, 0.4);
   cursor: pointer;
   padding: 2px;
   border-radius: 3px;
@@ -47,6 +47,14 @@
 .selected {
   background-color: rgba(255, 230, 0, 0.6);
   cursor: pointer;
+}
+
+.accepted {
+  color: rgb(0, 200, 0);
+}
+
+.rejected {
+  color: rgba(200, 0, 0);
 }
 
 .mySuggestionHighlight {
