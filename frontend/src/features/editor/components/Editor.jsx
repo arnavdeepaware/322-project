@@ -79,6 +79,8 @@ function Editor() {
   }
 
   function handleSave() {
+    console.log("Saving text")
+
     const modifiedText = segments.map((segment) =>
       segment.type === "normal" || segment.status !== "accepted"
         ? segment.text
@@ -112,10 +114,10 @@ function Editor() {
         onSubmit={handleSave}
         submitLabel="Save Text"
         buttons={[
-          <button key="accept" onClick={handleAccept}>
+          <button key="accept" type="button" onClick={handleAccept}>
             Accept
           </button>,
-          <button key="reject" onClick={handleReject}>
+          <button key="reject" type="button" onClick={handleReject}>
             Reject
           </button>,
         ]}
