@@ -165,6 +165,7 @@ function Editor() {
             onSubmit={handleSubmit}
             submitLabel="Correct"
           />
+          <hr />
           <TextBlock
             title="Corrected Text"
             text={

@@ -76,7 +76,8 @@
   gap: 10px;
 }
 
-.document-page form {
+.document-page form,
+.account-page form {
   display: block;
 }
 
@@ -103,4 +104,20 @@
 .tokens-page .tokens-table td {
   width: 50%;
   padding: 10px;
+}
+
+.account-page {
+  height: 90vh;
+  display: flex;
+  justify-content: center;
+}
+
+.account-page main {
+  width: 50vw;
+  align-self: flex-start;
+}
+
+.account-page .logout-btn {
+  align-self: flex-start;
+  background-color: rgb(200, 0, 00);
 }

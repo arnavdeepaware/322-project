@@ -14,6 +14,20 @@ export async function signInWithGoogle() {
   return data;
 }
 
+export async function updateUsername(userId, username) {
+  const { data, error } = await supabase
+    .from("users")
+    .update({ username: username })
+    .eq("id", userId);
+
+  if (error) {
+    console.error("Error updating username:", error);
+    return null;
+  }
+
+  return data;
+}
+
 export async function getDocumentsByUserId(id) {
   const { data, error } = await supabase
     .from("documents")
