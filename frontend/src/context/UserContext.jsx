@@ -14,8 +14,6 @@ export function UserProvider({ children }) {
   }
 
   const fetchTokenBalance = async (userId) => {
-    console.log("User id being used is", userId)
-
     const { data, error } = await supabase
       .from("users")
       .select("tokens")
@@ -59,7 +57,7 @@ export function UserProvider({ children }) {
     );
 
     return () => listener.subscription.unsubscribe();
-  }, []);
+  }, [tokens]);
 
   return (
     <UserContext.Provider value={{ user, loading, tokens, handleTokenChange }}>

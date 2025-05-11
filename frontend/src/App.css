@@ -49,6 +49,16 @@
   gap: 10px;
 }
 
+.home-page {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.home-page .blacklist-form form {
+  flex-direction: row;
+  gap: 12px;
+}
+
 .editor-page {
   height: 90vh;
   display: flex;

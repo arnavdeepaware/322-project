@@ -50,3 +50,43 @@ export async function createDocument(userId, text) {
 
   return data[0];
 }
+
+export async function updateDocument(document) {
+  console.log("updating", document)
+
+  const { data1, error1 } = await supabase
+    .from("documents")
+    .select()
+
+  console.log(data1, error1);
+
+  const { data, error } = await supabase
+    .from("documents")
+    .update({ content: document.content })
+    .eq("id", document.id);
+
+
+    console.log(data, error);
+
+  if (error) {
+    console.error("Error updating document:", error);
+    return null;
+  }
+
+  return data?.[0];
+}
+
+export async function submitBlacklistRequest(word) {
+  const { data, error } = await supabase.from("blacklist_requests").insert([
+    {
+      word: word,
+    },
+  ]);
+
+  if (error) {
+    console.error("Error submitting request:", error.message);
+    return null;
+  }
+
+  return data;
+}
