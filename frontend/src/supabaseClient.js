@@ -81,6 +81,34 @@ export async function updateDocument(document) {
   return data?.[0];
 }
 
+export async function inviteUserToDocument(userId, documentId) {
+  const { data: doc, error: fetchError } = await supabase
+    .from("documents")
+    .select("invited_ids")
+    .eq("id", documentId)
+    .single();
+
+  if (fetchError) {
+    console.error("Error fetching document:", fetchError);
+    return null;
+  }
+
+  const updatedIds = Array.from(new Set([...(doc.invited_ids || []), userId]));
+
+  const { data, error } = await supabase
+    .from("documents")
+    .update({ invited_ids: updatedIds })
+    .eq("id", documentId)
+    .select();
+
+  if (error) {
+    console.error("Error updating invited_ids:", error);
+    return null;
+  }
+
+  return data?.[0];
+}
+
 export async function submitBlacklistRequest(word) {
   const { data, error } = await supabase.from("blacklist_requests").insert([
     {

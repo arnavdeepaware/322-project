@@ -1,20 +1,30 @@
 import React from "react";
-import { updateDocument } from "../../../supabaseClient";
+import { inviteUserToDocument, updateDocument } from "../../../supabaseClient";
+import { useUser } from "../../../context/UserContext";
 
 function Document({ document }) {
+  const { user } = useUser();
+
   function handleTitleChange(e) {
     e.preventDefault();
     const newTitle = e.target.title.value;
 
-    console.log(newTitle);
     updateDocument({ ...document, title: newTitle }).then(() => {
       window.location.reload();
     });
   }
 
+  function handleInvite(e) {
+    // e.preventDefault();
+    // inviteUserToDocument(user.id, document.id).then(() => {
+    //   window.location.reload();
+    // });
+  }
+
   return (
     <div className="panel document">
       <h2 className="title">{document.title}</h2>
+      <h5>Owner: {user.id}</h5>
       <h5>Collaborators: </h5>
       <h5>Invited: </h5>
       <p className="content">{document.content}</p>
