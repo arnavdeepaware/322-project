@@ -6,7 +6,6 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_KEY;
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function signInWithGoogle() {
-  console.log("signing in with google");
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
   });
@@ -23,6 +22,21 @@ export async function getDocumentsByUserId(id) {
 
   if (error) {
     console.error("Error fetching documents:", error);
+    return null;
+  }
+
+  return data;
+}
+
+export async function getDocumentById(id) {
+  const { data, error } = await supabase
+    .from("documents")
+    .select()
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    console.error("Error fetching document", id, error);
     return null;
   }
 
@@ -52,21 +66,12 @@ export async function createDocument(userId, text) {
 }
 
 export async function updateDocument(document) {
-  console.log("updating", document)
-
-  const { data1, error1 } = await supabase
-    .from("documents")
-    .select()
-
-  console.log(data1, error1);
+  const { id, ...fields } = document;
 
   const { data, error } = await supabase
     .from("documents")
-    .update({ content: document.content })
+    .update(fields)
     .eq("id", document.id);
-
-
-    console.log(data, error);
 
   if (error) {
     console.error("Error updating document:", error);

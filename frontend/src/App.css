@@ -76,6 +76,10 @@
   gap: 10px;
 }
 
+.document-page form {
+  display: block;
+}
+
 .tokens-page {
   display: flex;
   justify-content: center;
