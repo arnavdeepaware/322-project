@@ -1,5 +1,5 @@
 import React from "react";
-import "./documents.css";
+import "../documents.css";
 import { useNavigate } from "react-router";
 
 function DocumentPreview({ document }) {

@@ -14,6 +14,38 @@ export async function signInWithGoogle() {
   return data;
 }
 
+export async function getUsernameById(userId) {
+  const { data, error } = await supabase
+    .from("users")
+    .select("username")
+    .eq("id", userId)
+    .single();
+
+  if (error) {
+    console.error("Error getting username:", error);
+    return null;
+  }
+
+  return data.username;
+}
+
+export async function getIdByUsername(username) {
+  console.log("searching for username", username);
+
+  const { data, error } = await supabase
+    .from("users")
+    .select("id")
+    .eq("username", username)
+    .single();
+
+  if (error) {
+    console.error("Error getting user ID by username:", error);
+    return null;
+  }
+
+  return data.id;
+}
+
 export async function updateUsername(userId, username) {
   const { data, error } = await supabase
     .from("users")

@@ -1,10 +1,12 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { supabase, incrementTokens } from "../supabaseClient"; // adjust path as needed
+import { supabase, incrementTokens } from "../supabaseClient";
+import { getUsernameById } from "../supabaseClient";
 
 const UserContext = createContext();
 
 export function UserProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [username, setUsername] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tokens, setTokens] = useState(0);
 
@@ -18,8 +20,7 @@ export function UserProvider({ children }) {
       .from("users")
       .select("tokens")
       .eq("id", userId)
-      .single()
-
+      .single();
 
     if (error) {
       console.error("Error fetching token balance:", error.message);
@@ -39,6 +40,7 @@ export function UserProvider({ children }) {
 
       if (session?.user) {
         fetchTokenBalance(session.user.id);
+        getUsernameById(session.user.id).then((uname) => setUsername(uname));
       }
     };
 
@@ -50,6 +52,7 @@ export function UserProvider({ children }) {
         setUser(session?.user || null);
         if (session?.user) {
           fetchTokenBalance(session.user.id);
+          getUsernameById(session.user.id).then((uname) => setUsername(uname));
         } else {
           setTokens(0);
         }
@@ -60,7 +63,7 @@ export function UserProvider({ children }) {
   }, [tokens]);
 
   return (
-    <UserContext.Provider value={{ user, loading, tokens, handleTokenChange }}>
+    <UserContext.Provider value={{ user, username, loading, tokens, handleTokenChange }}>
       {children}
     </UserContext.Provider>
   );
