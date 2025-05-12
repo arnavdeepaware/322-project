@@ -27,7 +27,7 @@
 
 body {
   margin: 0;
-  background-color: whitesmoke;
+  background-color: #9bbbd1;
 }
 
 header {
@@ -35,6 +35,15 @@ header {
   box-sizing: border-box;
   color: white;
   padding: 0px 40px;
+  margin-bottom: 5px;
+}
+
+header .logo .title {
+  font-size: large
+}
+
+header .logo img {
+  width: 30%;
 }
 
 header nav {
@@ -61,23 +70,21 @@ header {
   font-weight: bold;
 }
 
-.editor-page {
-  height: 90vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
 button {
   background-color: #3498db;
   color: white;
   border: 0px;
   border-radius: 10px;
-  padding: 15px 20px;
+  padding: 10px 15px;
   font-size: 1rem;
   font-weight: 700;
   font-family: sans-serif;
   cursor: pointer;
+}
+
+button:active {
+  transform: scale(0.95);
+  box-shadow: inset 0 4px 6px rgba(0, 0, 0, 0.2);
 }
 
 .panel {
@@ -86,7 +93,13 @@ button {
   background-color: white;
   padding: 20px;
   border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   gap: 10px;
+  margin: 10px;
+}
+
+.panel .panel {
+  box-shadow: none;
 }
 
 .panel .title {
@@ -98,9 +111,11 @@ button {
   flex-direction: column;
 }
 
-.panel .submit-btn {
-  margin-top: 10px;
-  align-self: flex-end;
+.panel .buttons {
+  display: flex;
+  margin: 10px 0px;
+  gap: 10px;
+  justify-content: flex-end;
 }
 
 .panel .text-block-input {
@@ -115,4 +130,16 @@ button {
   white-space: pre-wrap;
   overflow-wrap: break-word;
   overflow-y: auto;
+}
+
+.panel input {
+  margin: 0px 10px;
+}
+
+.panel input,
+.panel select {
+  border: 2px #3498db solid;
+  border-radius: 10px;
+  padding: 5px;
+  outline: none;
 }

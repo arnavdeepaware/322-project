@@ -1,123 +1,204 @@
-import React, { useState } from "react";
+import { useState, useEffect, useContext } from "react";
+import { useUser } from "../../../context/UserContext";
+import { produce } from "immer";
 import TextBlock from "../../../components/TextBlock";
-import HighlightedText from "../../../HighlightedText";
+import { fetchErrors, getCorrectionSegments } from "./editorUtils";
+import {
+  getDocumentsByUserId,
+  createDocument,
+  updateDocument,
+} from "../../../supabaseClient";
 import "../Editor.css";
 
-function Editor() {
-  const [input, setInput] = useState("");
-  const [errors, setErrors] = useState([]); // ops for highlighting
-  const [acceptances, setAcceptances] = useState([]);
-  const [rejections, setRejections] = useState([]);
+function HighlightedText({ segments, selectedError }) {
+  const segmentSpans = segments.map((segment, i) => {
+    let spanContent;
+    let spanClass = "";
 
-  const fetchData = async (text) => {
-    const response = await fetch("http://localhost:5000/check", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
-    const data = await response.json();
-    return data;
-  };
+    switch (true) {
+      case i === 2 * selectedError + 1:
+        spanContent = segment.correction;
+        spanClass = "selected";
+        break;
+      case segment.type === "error" && segment.status === "pending":
+        spanContent = segment.correction;
+        spanClass = "highlighted";
+        break;
+      case segment.type == "error" && segment.status === "accepted":
+        spanContent = segment.correction;
+        spanClass = "accepted";
+        break;
+      case segment.type == "error" && segment.status === "rejected":
+        spanContent = segment.text;
+        spanClass = "rejected";
+        break;
+      default:
+        spanContent = segment.text;
+        break;
+    }
+
+    return (
+      <span key={i} className={spanClass}>
+        {spanContent}
+      </span>
+    );
+  });
+
+  return <div className="segments">{segmentSpans}</div>;
+}
+
+function Editor() {
+  const [documents, setDocuments] = useState(null);
+  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [input, setInput] = useState("");
+  const [segments, setSegments] = useState([]);
+  const [selectedError, setSelectedError] = useState(0);
+  const { user, handleTokenChange } = useUser();
+
+  useEffect(() => {
+    getDocumentsByUserId(user.id).then((data) => setDocuments(data));
+  }, []);
+
+  function handleSelectDocument(e) {
+    const docId = e.target.value;
+    if (docId === "") {
+      console.log("setting document to null");
+      setSelectedDocument(null);
+      setInput("");
+      return;
+    }
+
+    const doc = documents.find((doc) => doc.id === parseInt(docId, 10));
+    console.log(doc);
+    setSelectedDocument(doc);
+    setInput(doc.content);
+  }
 
   const handleSubmit = async (text) => {
     setInput(text);
-    const data = await fetchData(text);
-    console.log(data);
-    setErrors(data);
-    setAcceptances([]);
-    setRejections([]);
+    const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+    handleTokenChange(-wordCount);
+
+    const errors = await fetchErrors(text);
+    setSegments(getCorrectionSegments(text, errors));
+    setSelectedError(0);
   };
 
-  // accept handler applies replacement to `input` and logs
-  const handleAccept = (i) => {
-    const op = errors[i];
-    // apply to input
-    const before = input.slice(0, op.start);
-    const after = input.slice(op.start + op.length);
-    const newText = before + op.replacement + after;
-    setInput(newText);
-    // shift remaining error ops
-    const delta = op.replacement.length - op.length;
-    const updatedErrors = errors
-      .filter((_, idx) => idx !== i)
-      .map((e) => ({
-        ...e,
-        start: e.start > op.start ? e.start + delta : e.start,
-      }));
-    setErrors(updatedErrors);
-    // log acceptance
-    setAcceptances((prev) => [
-      ...prev,
-      {
-        original: input.slice(op.start, op.start + op.length),
-        replacement: op.replacement,
-      },
-    ]);
-  };
+  function handleAccept() {
+    if (2 * selectedError + 1 >= segments.length) return;
 
-  // reject handler prompts for reason and logs
-  const handleReject = (i) => {
-    const op = errors[i];
-    const reason = window.prompt("Reason for rejection:");
-    if (!reason) return;
-    setRejections((prev) => [
-      ...prev,
-      {
-        original: input.slice(op.start, op.start + op.length),
-        replacement: op.replacement,
-        reason,
-      },
-    ]);
-    // remove the op
-    setErrors((prev) => prev.filter((_, idx) => idx !== i));
-  };
+    setSegments((prev) =>
+      produce(prev, (draft) => {
+        draft[2 * selectedError + 1].status = "accepted";
+      })
+    );
+    setSelectedError((prev) => prev + 1);
+    handleTokenChange(-1);
+  }
+
+  function handleReject() {
+    if (2 * selectedError + 1 >= segments.length) return;
+
+    setSegments((prev) =>
+      produce(prev, (draft) => {
+        draft[2 * selectedError + 1].status = "rejected";
+      })
+    );
+    setSelectedError((prev) => prev + 1);
+  }
+
+  async function handleSave() {
+    const modifiedText = segments
+      .map((segment) =>
+        segment.type === "normal" || segment.status !== "accepted"
+          ? segment.text
+          : segment.correction
+      )
+      .join("");
+
+    if (!selectedDocument) {
+      console.log("creating new document");
+      await createDocument(user.id, modifiedText);
+    } else {
+      console.log("updating document", selectedDocument.id);
+      const modifiedDocument = { ...selectedDocument, content: modifiedText };
+      const updatedDocuments = documents.map((doc) =>
+        doc.id === modifiedDocument.id ? modifiedDocument : doc
+      );
+
+      setSelectedDocument(modifiedDocument);
+      setDocuments(updatedDocuments);
+      const updatedDoc = await updateDocument(modifiedDocument);
+      if (updatedDoc) {
+        console.log("Document updated successfully", updatedDoc);
+      }
+    }
+
+    handleTokenChange(-5);
+  }
 
   return (
-    <div className="editor">
-      <TextBlock
-        title="Input Text"
-        text={input}
-        isEditable={true}
-        onSubmit={handleSubmit}
-      />
-
-      {errors.length > 0 && (
-        <>
-          <HighlightedText
+    documents && (
+      <div className="editor panel">
+        <div className="editor-header">
+          <label>Select Document: </label>
+          <select
+            className="document-select"
+            value={selectedDocument ? selectedDocument.id : ""}
+            onChange={handleSelectDocument}
+          >
+            <option key="new-doc" value="">
+              New Document
+            </option>
+            {documents.map((document) => (
+              <option key={document.id} value={document.id}>
+                {document.title}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="editor-text-blocks">
+          <TextBlock
+            title="Input Text"
             text={input}
-            ops={errors}
-            onAccept={handleAccept}
-            onReject={handleReject}
+            isEditable={true}
+            onSubmit={handleSubmit}
+            submitLabel="Correct"
           />
-        </>
-      )}
-
-      {/* Optionally, show logs of acceptances/rejections */}
-      {/* {acceptances.length > 0 && (
-        <div className="log">
-          <h3>Accepted Corrections</h3>
-          <ul>
-            {acceptances.map((a, idx) => (
-              <li key={idx}>
-                "{a.original}" → "{a.replacement}"
-              </li>
-            ))}
-          </ul>
+          <hr />
+          <TextBlock
+            title="Corrected Text"
+            text={
+              <HighlightedText
+                segments={segments}
+                selectedError={selectedError}
+              />
+            }
+            isEditable={false}
+            onSubmit={handleSave}
+            submitLabel="Save Text"
+            buttons={[
+              <button
+                className="accept-btn"
+                key="accept"
+                type="button"
+                onClick={handleAccept}
+              >
+                Accept
+              </button>,
+              <button
+                className="reject-btn"
+                key="reject"
+                type="button"
+                onClick={handleReject}
+              >
+                Reject
+              </button>,
+            ]}
+          ></TextBlock>
         </div>
-      )}
-      {rejections.length > 0 && (
-        <div className="log">
-          <h3>Rejected Corrections</h3>
-          <ul>
-            {rejections.map((r, idx) => (
-              <li key={idx}>
-                "{r.original}" (suggested "{r.replacement}") — reason: {r.reason}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )} */}
-    </div>
+      </div>
+    )
   );
 }
 

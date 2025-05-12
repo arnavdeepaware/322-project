@@ -49,6 +49,23 @@
   gap: 10px;
 }
 
+.home-page {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.home-page .blacklist-form form {
+  flex-direction: row;
+  gap: 12px;
+}
+
+.editor-page {
+  height: 90vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .documents-page {
   padding: 15px 15vw;
 }
@@ -57,4 +74,50 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.document-page form,
+.account-page form {
+  display: block;
+}
+
+.tokens-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 90vh;
+}
+
+.tokens-page main {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  width: 75vw;
+}
+
+.tokens-page .tokens-table {
+  text-align: center;
+  border-radius: 30px;
+  padding: 10px;
+}
+
+.tokens-page .tokens-table td {
+  width: 50%;
+  padding: 10px;
+}
+
+.account-page {
+  height: 90vh;
+  display: flex;
+  justify-content: center;
+}
+
+.account-page main {
+  width: 50vw;
+  align-self: flex-start;
+}
+
+.account-page .logout-btn {
+  align-self: flex-start;
+  background-color: rgb(200, 0, 00);
 }

@@ -5,18 +5,14 @@ function TextBlock({
   title = null,
   text = "",
   isEditable,
-  isCorrected,
   onSubmit,
-  onCorrect,
   submitLabel = "Submit Text",
-  correctLabel = "Make Corrections",
-  rejectLabel = "Reject Corrections",
+  buttons,
 }) {
-  const blacklist = ["fuck"];
   const [inputValue, setInputValue] = useState(text);
 
   function handleChange(e) {
-    setInputValue(replaceBlacklistedWords(e.target.value));
+    setInputValue(e.target.value);
   }
 
   function handleSubmit(e) {
@@ -24,28 +20,14 @@ function TextBlock({
     onSubmit?.(inputValue);
   }
 
-  function handleCorrection(e) {
-    e.preventDefault();
-    onCorrect?.(inputValue);
-  }
-
   useEffect(() => {
     setInputValue(text);
   }, [text]);
 
-  const replaceBlacklistedWords = (text) => {
-    let modifiedText = text;
-    blacklist.forEach((word) => {
-      const regex = new RegExp(`\\b${word}\\b`, "gi");
-      modifiedText = modifiedText.replace(regex, "*".repeat(word.length));
-    });
-    return modifiedText;
-  };
-
   return (
     <div className="panel">
       {title && <h2 className="title">{title}</h2>}
-      <form name="text" onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit}>
         {isEditable ? (
           <textarea
             className="text-block-input"
@@ -57,20 +39,14 @@ function TextBlock({
           <div className="text-block-input">{text}</div>
         )}
 
-        {isEditable && (
-          <button className="submit-btn" type="submit">
-            {submitLabel}
-          </button>
-        )}
-        {!isEditable && !isCorrected && (
-          <button
-            className="submit-btn"
-            type="button"
-            onClick={handleCorrection}
-          >
-            {correctLabel}
-          </button>
-        )}
+        <div className="buttons">
+          {buttons}
+          {onSubmit && (
+            <button className="submit-btn" type="submit">
+              {submitLabel}
+            </button>
+          )}
+        </div>
       </form>
     </div>
   );

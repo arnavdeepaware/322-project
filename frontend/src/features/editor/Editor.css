@@ -1,11 +1,25 @@
 .editor {
+  margin: 5px;
+}
+
+.editor > * {
+  padding: 0px 10px;
+}
+
+.editor .document-select {
+  align-self: flex-start;
+}
+
+.editor-text-blocks {
   display: flex;
+  flex-direction: row;
+  padding: 0;
   gap: 10px;
 }
 
 .editor .text-block-input {
   width: 25vw;
-  height: 50vh;
+  height: 45vh;
   resize: none;
   border: 2px #3498db solid;
   border-radius: 10px;
@@ -22,8 +36,8 @@
 }
 
 /* Highlighted suggestion spans */
-.suggestion {
-  background-color: rgba(255, 0, 0, 0.2);
+.highlighted, .selected {
+  background-color: rgba(0, 255, 0, 0.4);
   cursor: pointer;
   padding: 2px;
   border-radius: 3px;
@@ -43,6 +57,28 @@
   overflow-wrap: break-word;
   overflow-y: auto;
 }
+
+.selected {
+  background-color: rgba(255, 230, 0, 0.6);
+  cursor: pointer;
+}
+
+.accept-btn {
+  background-color: rgb(0, 200, 0);
+}
+
+.reject-btn {
+  background-color: rgb(200, 0, 0);
+}
+
+.accepted {
+  color: rgb(0, 200, 0);
+}
+
+.rejected {
+  color: rgba(200, 0, 0);
+}
+
 .mySuggestionHighlight {
   background-color: rgba(255, 230, 0, 0.6);
   cursor: pointer;

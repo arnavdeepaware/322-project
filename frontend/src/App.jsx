@@ -7,6 +7,7 @@ import HomePage from "./pages/HomePage";
 import AccountPage from "./pages/AccountPage";
 import TokensPage from "./pages/TokensPage";
 import DocumentsPage from "./pages/DocumentsPage";
+import DocumentPage from "./pages/DocumentPage";
 import LoginPage from "./pages/LoginPage";
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
           <Route index element={<HomePage />} />
           <Route path="/editor" element={<EditorPage />} />
           <Route path="/documents" element={<DocumentsPage />} />
+          <Route path="/documents/:id" element={<DocumentPage />} />
           <Route path="/account" element={<AccountPage />} />
           <Route path="/tokens" element={<TokensPage />} />
         </Route>

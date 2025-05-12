@@ -1,0 +1,77 @@
+import React, { useEffect, useState } from "react";
+import {
+  getIdByUsername,
+  getUsernameById,
+  inviteUserToDocument,
+  updateDocument,
+} from "../../../supabaseClient";
+import { useUser } from "../../../context/UserContext";
+import "../documents.css"
+
+function Document({ document }) {
+  const { user, username } = useUser();
+  const [invited, setInvited] = useState(null);
+
+  useEffect(() => {
+    async function getInvited() {
+      const usernames = await Promise.all(
+        document.invited_ids.map((id) => getUsernameById(id))
+      );
+      setInvited(usernames);
+    }
+
+    getInvited();
+  }, []);
+
+  function handleTitleChange(e) {
+    e.preventDefault();
+    const newTitle = e.target.title.value;
+
+    updateDocument({ ...document, title: newTitle }).then(() => {
+      window.location.reload();
+    });
+  }
+
+  async function handleInvite(e) {
+    e.preventDefault();
+    const username = e.target.username.value;
+
+    const id = await getIdByUsername(username);
+    if (!id) {
+      console.error("User not found");
+      return;
+    }
+
+    await inviteUserToDocument(id, document.id);
+    window.location.reload();
+  }
+
+  return (
+    invited && (
+      <div className="panel document">
+        <h2 className="title">{document.title}</h2>
+        <h5>Owner: <span className="username">{username}</span></h5>
+        <h5>Collaborators: </h5>
+        <h5>
+          Invited:{" "}
+          {invited.map((username) => (
+            <span className="username">{username}</span>
+          ))}
+        </h5>
+        <p className="content">{document.content}</p>
+        <form className="title-form" onSubmit={handleTitleChange}>
+          <label htmlFor="">Change Title: </label>
+          <input type="text" name="title" />
+          <button type="submit">Update</button>
+        </form>
+        <form className="invite-form" onSubmit={handleInvite}>
+          <label htmlFor="">Invite User: </label>
+          <input type="text" name="username" />
+          <button type="submit">Invite</button>
+        </form>
+      </div>
+    )
+  );
+}
+
+export default Document;
