@@ -1,10 +1,11 @@
 export async function fetchErrors(text) {
-  const response = await fetch("http://localhost:5000/check", {
+  const response = await fetch("http://localhost:5000/check-legacy", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text }),
   });
   const data = await response.json();
+  console.log(data);
   return data;
 }
 

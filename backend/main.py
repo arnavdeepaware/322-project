@@ -1,10 +1,18 @@
 from flask import Flask, request, jsonify
-from text_correction import check_for_errors
+from text_correction import check_for_errors, check_for_errors_legacy
 from flask_cors import CORS
 from diff_match_patch import diff_match_patch
 
 app = Flask(__name__)
 CORS(app)
+
+@app.route('/check-legacy', methods=['POST'])
+def check_legacy():
+    data = request.json
+    if 'text' not in data:
+        return jsonify({"error": "Text input is required"}), 400
+    result = check_for_errors_legacy(data['text'])
+    return jsonify(result)
 
 
 @app.route('/check', methods=['POST'])
@@ -13,8 +21,6 @@ def check():
     if 'text' not in data:
         return jsonify({"error": "Text input is required"}), 400
     result = check_for_errors(data['text'])
-    
-
 
     #Make correction patches
     dmp = diff_match_patch()

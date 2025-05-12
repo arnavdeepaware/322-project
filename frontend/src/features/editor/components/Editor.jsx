@@ -135,6 +135,7 @@ function Editor() {
     }
 
     handleTokenChange(-5);
+    window.location.reload();
   }
 
   return (

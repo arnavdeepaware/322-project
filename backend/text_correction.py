@@ -11,6 +11,27 @@ if not api_key:
     raise EnvironmentError("OPENAI_API_KEY not found. Please set it in the .env file.")
 openai.api_key = api_key
 
+def check_for_errors_legacy(text):
+    system = (
+        "You are a grammar expert. Analyze the given text for grammatical errors and suggest corrections.\n"
+        "IMPORTANT: Treat every occurrence of the literal token '****' as valid and part of the text. Do NOT remove, modify, or merge any '****' tokens under any circumstances, and ignore them during grammar checks.\n"
+        "Provide your output strictly as a JSON array in this exact format:\n"
+        "[\n"
+        "  {\"error\": \"the incorrect text\", \"correction\": \"corrected version\", \"position\": index where the error starts}\n"
+        "]"
+    )
+    user = f"Text: \"{text}\""
+    res = openai.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user}
+        ],
+        temperature=0
+    )
+    content = res.choices[0].message.content.strip().replace('```json','').replace('```','').strip()
+    return json.loads(content)
+
 def check_for_errors(text):
     system = (
         "You are an expert copy‑editor. Your job is to PROOFREAD and CORRECT every spelling, " 
