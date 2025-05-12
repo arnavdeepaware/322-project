@@ -12,7 +12,7 @@ function Header() {
       <nav>
         <ul className="left-links">
           <li>
-            <Link to="/">EditFlow</Link>
+            <Link to="/"><Logo /></Link>
           </li>
           <li>
             <Link to="/editor">Editor</Link>

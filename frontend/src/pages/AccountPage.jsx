@@ -1,5 +1,5 @@
 import React from "react";
-import { updateUsername } from "../supabaseClient";
+import { supabase, updateUsername } from "../supabaseClient";
 import { useUser } from "../context/UserContext";
 
 function AccountPage() {

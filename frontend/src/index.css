@@ -38,6 +38,14 @@ header {
   margin-bottom: 5px;
 }
 
+header .logo .title {
+  font-size: large
+}
+
+header .logo img {
+  width: 30%;
+}
+
 header nav {
   display: flex;
   justify-content: space-between;
