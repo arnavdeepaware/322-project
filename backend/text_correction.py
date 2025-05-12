@@ -1,22 +1,29 @@
 import os
 import json
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 import openai
 
-# Load OpenAI API key
-load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Load OpenAI API key from root .env file
+load_dotenv(find_dotenv())
+# Verify API key
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    raise EnvironmentError("OPENAI_API_KEY not found. Please set it in the .env file.")
+openai.api_key = api_key
 
 def check_for_errors(text):
     system = (
-        "You are a grammar expert. Analyze the given text for grammatical errors and suggest corrections.\n"
-        "IMPORTANT: Treat every occurrence of the literal token '****' as valid and part of the text. Do NOT remove, modify, or merge any '****' tokens under any circumstances, and ignore them during grammar checks.\n"
-        "Provide your output strictly as a JSON array in this exact format:\n"
-        "[\n"
-        "  {\"error\": \"the incorrect text\", \"correction\": \"corrected version\", \"position\": index where the error starts}\n"
-        "]"
+        "You are an expert copy‑editor. Your job is to PROOFREAD and CORRECT every spelling, " 
+        "grammar, and punctuation mistake in the user’s text. You MUST preserve any '****' tokens " 
+        "verbatim and ignore them for error detection. Output ONLY the fully corrected text, with no "
+        "explanations, labels, or code fences.\n\n"
+        "EXAMPLES:\n"
+        "Input: \"Hlleo, wrld!\"\n"
+        "Output: \"Hello, world!\"\n\n"
+        "Input: \"I cant go to the party\"\n"
+        "Output: \"I can't go to the party.\"\n\n"
     )
-    user = f"Text: \"{text}\""
+    user = text
     res = openai.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
@@ -26,26 +33,26 @@ def check_for_errors(text):
         temperature=0
     )
     content = res.choices[0].message.content.strip().replace('```json','').replace('```','').strip()
-    return json.loads(content)
+    return content
 
 
-def replace_Text(text, errors):
-    system = (
-        "You are a grammar expert. Given the original text and a list of grammar errors, produce the fully corrected text.\n"
-        "IMPORTANT: Treat every occurrence of the literal token '****' as valid and immutable. Do NOT remove, modify, merge, or reposition any '****' tokens. They must remain in their original positions, even if the surrounding words change.\n"
-        "Provide your output strictly as a JSON array in this exact format:\n"
-        "[\n"
-        "  { \"Corrected_Text\": The full text with all errors corrected. }\n"
-        "]"
-    )
-    user = f"Text: \"{text}\"\nerrors: {json.dumps(errors)}"
-    res = openai.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": user}
-        ],
-        temperature=0
-    )
-    content = res.choices[0].message.content.strip().replace('```json','').replace('```','').strip()
-    return json.loads(content)
+# def replace_Text(text, errors):
+#     system = (
+#         "You are a grammar expert. Given the original text and a list of grammar errors, produce the fully corrected text.\n"
+#         "IMPORTANT: Treat every occurrence of the literal token '****' as valid and immutable. Do NOT remove, modify, merge, or reposition any '****' tokens. They must remain in their original positions, even if the surrounding words change.\n"
+#         "Provide your output strictly as a JSON array in this exact format:\n"
+#         "[\n"
+#         "  { \"Corrected_Text\": The full text with all errors corrected. }\n"
+#         "]"
+#     )
+#     user = f"Text: \"{text}\"\nerrors: {json.dumps(errors)}"
+#     res = openai.chat.completions.create(
+#         model="gpt-3.5-turbo",
+#         messages=[
+#             {"role": "system", "content": system},
+#             {"role": "user", "content": user}
+#         ],
+#         temperature=0
+#     )
+#     content = res.choices[0].message.content.strip().replace('```json','').replace('```','').strip()
+#     return json.loads(content)
