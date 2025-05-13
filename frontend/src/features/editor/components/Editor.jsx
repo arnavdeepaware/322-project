@@ -140,6 +140,26 @@ function Editor() {
     handleTokenChange(-5);
     window.location.reload();
   }
+  function handleDonwload() {
+    const modifiedText = segments
+      .map((segment) =>
+        segment.type === "normal" || segment.status !== "accepted"
+          ? segment.text
+          : segment.correction
+      )
+      .join("");
+    const blob = new Blob([modifiedText], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href
+      = url;
+    a.download = documentTitle || "corrected_text.txt";  // use document title or default name
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  
 
   // Add file import handler to load .txt files into the editor
   function handleFileUpload(e) {
@@ -231,6 +251,12 @@ function Editor() {
               >
                 Reject
               </button>,
+              <button
+                className="download-btn"
+                key="download"
+                type="button"
+                onClick={handleDonwload}
+                >Download</button>
             ]}
           ></TextBlock>
         </div>
