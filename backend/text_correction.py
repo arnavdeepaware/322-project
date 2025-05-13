@@ -37,6 +37,9 @@ def check_for_errors(text):
         You are an expert copy-editor. Your job is to CORRECT ONLY real spelling, grammar, or word‐usage errors.
         ⚠️ Do NOT change any punctuation marks (.,!?,;:"'), capitalization, or spacing that are already correct.
         Preserve every '****' token verbatim. Output ONLY the corrected text, no labels or fences.
+        — You MUST NOT add, remove, or change any punctuation characters (.,!?;:—) unless they’re part of a genuine error you’re correcting.  
+        — You MUST NOT insert any new exclamation marks, periods, etc. unless they’re part of a genuine error you’re correcting.
+        — You MUST NOT change the capitalization of any words unless they’re part of a genuine error you’re correcting.  
 
         EXAMPLES:
         Input: "I am here!"

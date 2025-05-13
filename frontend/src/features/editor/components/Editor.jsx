@@ -50,7 +50,7 @@ function HighlightedText({ segments, selectedError }) {
 function Editor() {
   const [documents, setDocuments] = useState(null);
   const [selectedDocument, setSelectedDocument] = useState(null);
-  const [documentTitle, setDocumentTitle] = useState("");  // add title state
+  const [documentTitle, setDocumentTitle] = useState("New Document");  // add title state
   const [input, setInput] = useState("");
   const [segments, setSegments] = useState([]);
   const [selectedError, setSelectedError] = useState(0);
@@ -110,6 +110,8 @@ function Editor() {
     setSelectedError((prev) => prev + 1);
   }
 
+  const duplicateDoc = !selectedDocument && documents?.find(doc => doc.title === documentTitle);
+
   async function handleSave() {
     const modifiedText = segments
       .map((segment) =>
@@ -119,28 +121,26 @@ function Editor() {
       )
       .join("");
 
-    if (!selectedDocument) {
-      console.log("creating new document");
-      await createDocument(user.id, modifiedText, documentTitle);
-    } else {
-      console.log("updating document", selectedDocument.id);
-      const modifiedDocument = { ...selectedDocument, content: modifiedText, title: documentTitle };
-      const updatedDocuments = documents.map((doc) =>
-        doc.id === modifiedDocument.id ? modifiedDocument : doc
+    if (selectedDocument || duplicateDoc) {
+      const doc = selectedDocument || duplicateDoc;
+      console.log("updating document", doc.id);
+      const modifiedDocument = { ...doc, content: modifiedText, title: documentTitle };
+      const updatedDocuments = documents.map((d) =>
+        d.id === modifiedDocument.id ? modifiedDocument : d
       );
-
       setSelectedDocument(modifiedDocument);
       setDocuments(updatedDocuments);
-      const updatedDoc = await updateDocument(modifiedDocument);
-      if (updatedDoc) {
-        console.log("Document updated successfully", updatedDoc);
-      }
+      await updateDocument(modifiedDocument);
+      console.log("Document updated successfully", modifiedDocument.id);
+    } else {
+      console.log("creating new document");
+      await createDocument(user.id, modifiedText, documentTitle);
     }
 
     handleTokenChange(-5);
-    window.location.reload();
+
   }
-  function handleDonwload() {
+    function handleDonwload() {
     const modifiedText = segments
       .map((segment) =>
         segment.type === "normal" || segment.status !== "accepted"
@@ -159,8 +159,6 @@ function Editor() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
-  
-
   // Add file import handler to load .txt files into the editor
   function handleFileUpload(e) {
     const file = e.target.files[0];
@@ -233,7 +231,7 @@ function Editor() {
             }
             isEditable={false}
             onSubmit={handleSave}
-            submitLabel="Save Text"
+            submitLabel={selectedDocument || duplicateDoc ? "Update Text" : "Save Text"}
             buttons={[
               <button
                 className="accept-btn"
@@ -256,7 +254,7 @@ function Editor() {
                 key="download"
                 type="button"
                 onClick={handleDonwload}
-                >Download</button>
+                >Download</button>,
             ]}
           ></TextBlock>
         </div>
