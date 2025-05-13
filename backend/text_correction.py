@@ -33,16 +33,23 @@ def check_for_errors_legacy(text):
     return json.loads(content)
 
 def check_for_errors(text):
-    system = (
-        "You are an expert copy‑editor. Your job is to PROOFREAD and CORRECT every spelling, " 
-        "grammar, and punctuation mistake in the user’s text. You MUST preserve any '****' tokens " 
-        "verbatim and ignore them for error detection. Output ONLY the fully corrected text, with no "
-        "explanations, labels, or code fences.\n\n"
-        "EXAMPLES:\n"
-        "Input: \"Hlleo, wrld!\"\n"
-        "Output: \"Hello, world!\"\n\n"
-        "Input: \"I cant go to the party\"\n"
-        "Output: \"I can't go to the party.\"\n\n"
+    system = ("""
+        You are an expert copy-editor. Your job is to CORRECT ONLY real spelling, grammar, or word‐usage errors.
+        ⚠️ Do NOT change any punctuation marks (.,!?,;:"'), capitalization, or spacing that are already correct.
+        Preserve every '****' token verbatim. Output ONLY the corrected text, no labels or fences.
+
+        EXAMPLES:
+        Input: "I am here!"
+        Output: "I am here!"
+
+        Input: "hllo, wrld!"
+        Output: "Hello, world!"
+        
+        "Input: "Hlleo, wrld!"
+        "Output: "Hello, world!"
+        "Input: "I cant go to the party"
+        "Output: "I can't go to the party."
+    """
     )
     user = text
     res = openai.chat.completions.create(
