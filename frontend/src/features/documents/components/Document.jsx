@@ -3,10 +3,12 @@ import {
   getIdByUsername,
   getUsernameById,
   inviteUserToDocument,
+  getDocumentInvited,
+  getDocumentCollaborators,
   updateDocument,
 } from "../../../supabaseClient";
 import { useUser } from "../../../context/UserContext";
-import "../documents.css"
+import "../documents.css";
 
 function Document({ document }) {
   const { user, username } = useUser();
@@ -14,8 +16,12 @@ function Document({ document }) {
 
   useEffect(() => {
     async function getInvited() {
+      const user_ids = await getDocumentInvited(document.id);
       const usernames = await Promise.all(
-        document.invited_ids.map((id) => getUsernameById(id))
+        user_ids.map(async (id) => {
+          const username = await getUsernameById(id);
+          return username;
+        })
       );
       setInvited(usernames);
     }
@@ -50,12 +56,16 @@ function Document({ document }) {
     invited && (
       <div className="panel document">
         <h2 className="title">{document.title}</h2>
-        <h5>Owner: <span className="username">{username}</span></h5>
+        <h5>
+          Owner: <span className="username">{username}</span>
+        </h5>
         <h5>Collaborators: </h5>
         <h5>
           Invited:{" "}
           {invited.map((username) => (
-            <span className="username">{username}</span>
+            <span key={username} className="username">
+              {username}
+            </span>
           ))}
         </h5>
         <p className="content">{document.content}</p>

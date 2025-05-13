@@ -108,7 +108,19 @@ export async function createDocument(userId, text) {
     return null;
   }
 
-  return data[0];
+  const { data2, error2 } = await supabase
+    .from("document_access")
+    .insert([
+      { user_id: userId, document_id: data[0].id, access_status: "owner" },
+    ])
+    .select();
+
+  if (error2) {
+    console.error("Error updating document access:", error2);
+    return null;
+  }
+
+  return data2[0];
 }
 
 export async function updateDocument(document) {
@@ -128,31 +140,64 @@ export async function updateDocument(document) {
 }
 
 export async function inviteUserToDocument(userId, documentId) {
-  const { data: doc, error: fetchError } = await supabase
-    .from("documents")
-    .select("invited_ids")
-    .eq("id", documentId)
-    .single();
-
-  if (fetchError) {
-    console.error("Error fetching document:", fetchError);
-    return null;
-  }
-
-  const updatedIds = Array.from(new Set([...(doc.invited_ids || []), userId]));
-
   const { data, error } = await supabase
-    .from("documents")
-    .update({ invited_ids: updatedIds })
-    .eq("id", documentId)
+    .from("document_access")
+    .insert([
+      { user_id: userId, document_id: documentId, access_status: "invited" },
+    ])
     .select();
 
   if (error) {
-    console.error("Error updating invited_ids:", error);
+    console.error("Error inviting user:", error);
     return null;
   }
 
-  return data?.[0];
+  return data[0];
+}
+
+export async function getDocumentInvited(documentId) {
+  const { data, error } = await supabase
+    .from("document_access")
+    .select()
+    .eq("document_id", documentId)
+    .eq("access_status", "invited");
+
+  if (error) {
+    console.error("Error getting document collaborators:", error);
+    return null;
+  }
+
+  return data.map((entry) => entry.user_id);
+}
+
+export async function getInvitesByUserId(userId) {
+  const { data, error } = await supabase
+    .from("document_access")
+    .select()
+    .eq("user_id", userId)
+    .eq("access_status", "invited");
+
+  if (error) {
+    console.error("Error getting user invites:", error);
+    return null;
+  }
+
+  return data.map((entry) => entry.document_id);
+}
+
+export async function getDocumentCollaborators(documentId) {
+  const { data, error } = await supabase
+    .from("document_access")
+    .select()
+    .eq("document_id", documentId)
+    .eq("access_status", "collaborator");
+
+  if (error) {
+    console.error("Error getting document collaborators:", error);
+    return null;
+  }
+
+  return data.map((entry) => entry.user_id);
 }
 
 export async function submitBlacklistRequest(word) {

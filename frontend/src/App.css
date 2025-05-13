@@ -59,6 +59,17 @@
   gap: 12px;
 }
 
+.home-page .invite-entry {
+  display: flex;
+  gap: 10px;
+  margin: 10px 0px;
+  align-items: center;
+}
+
+.home-page .invite-entry .username {
+  margin: 0px 0px;
+}
+
 .editor-page {
   height: 90vh;
   display: flex;
