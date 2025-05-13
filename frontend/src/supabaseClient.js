@@ -97,10 +97,10 @@ export async function incrementTokens(amount) {
   }
 }
 
-export async function createDocument(userId, text) {
+export async function createDocument(userId, text,title) {
   const { data, error } = await supabase
     .from("documents")
-    .insert([{ owner_id: userId, content: text }])
+    .insert([{ owner_id: userId, content: text, title:title }])
     .select();
 
   if (error) {

@@ -50,6 +50,7 @@ function HighlightedText({ segments, selectedError }) {
 function Editor() {
   const [documents, setDocuments] = useState(null);
   const [selectedDocument, setSelectedDocument] = useState(null);
+  const [documentTitle, setDocumentTitle] = useState("");  // add title state
   const [input, setInput] = useState("");
   const [segments, setSegments] = useState([]);
   const [selectedError, setSelectedError] = useState(0);
@@ -65,6 +66,7 @@ function Editor() {
       console.log("setting document to null");
       setSelectedDocument(null);
       setInput("");
+      setDocumentTitle("");  // reset title
       return;
     }
 
@@ -72,6 +74,7 @@ function Editor() {
     console.log(doc);
     setSelectedDocument(doc);
     setInput(doc.content);
+    setDocumentTitle(doc.title || '');  // load existing title
   }
 
   const handleSubmit = async (text) => {
@@ -118,10 +121,10 @@ function Editor() {
 
     if (!selectedDocument) {
       console.log("creating new document");
-      await createDocument(user.id, modifiedText);
+      await createDocument(user.id, modifiedText, documentTitle);
     } else {
       console.log("updating document", selectedDocument.id);
-      const modifiedDocument = { ...selectedDocument, content: modifiedText };
+      const modifiedDocument = { ...selectedDocument, content: modifiedText, title: documentTitle };
       const updatedDocuments = documents.map((doc) =>
         doc.id === modifiedDocument.id ? modifiedDocument : doc
       );
@@ -136,6 +139,23 @@ function Editor() {
 
     handleTokenChange(-5);
     window.location.reload();
+  }
+
+  // Add file import handler to load .txt files into the editor
+  function handleFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target.result;
+      const name = file.name.replace(/\.txt$/i, '');
+      setSelectedDocument(null);
+      setInput(text);
+      setDocumentTitle(name);  // set title from file name
+      setSegments([]);
+      setSelectedError(0);
+    };
+    reader.readAsText(file);
   }
 
   return (
@@ -157,6 +177,22 @@ function Editor() {
               </option>
             ))}
           </select>
+          {/* Document name input */}
+          <input
+            type="text"
+            placeholder="Document Name"
+            value={documentTitle}
+            onChange={(e) => setDocumentTitle(e.target.value)}
+            className="document-name-input"
+            style={{ marginLeft: '1rem' }}
+          />
+          {/* File input for importing .txt files */}
+          <input
+            type="file"
+            accept=".txt"
+            onChange={handleFileUpload}
+            style={{ marginLeft: '1rem' }}
+          />
         </div>
         <div className="editor-text-blocks">
           <TextBlock
