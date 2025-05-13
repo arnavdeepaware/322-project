@@ -11,6 +11,7 @@ import { useUser } from "../../../context/UserContext";
 import "../documents.css";
 
 function Document({ document }) {
+  const { user } = useUser();
   const [owner, setOwner] = useState(null);
   const [collaborators, setCollaborators] = useState(null);
   const [invited, setInvited] = useState(null);
@@ -68,7 +69,8 @@ function Document({ document }) {
   }
 
   return (
-    invited && collaborators && (
+    invited &&
+    collaborators && (
       <div className="panel document">
         <h2 className="title">{document.title}</h2>
         <h5>
@@ -101,7 +103,9 @@ function Document({ document }) {
           <input type="text" name="username" />
           <button type="submit">Invite</button>
         </form>
-        <button className="delete-btn">Delete</button>
+        {document.owner_id === user.id && (
+          <button className="delete-btn">Delete</button>
+        )}
       </div>
     )
   );
