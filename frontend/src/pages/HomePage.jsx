@@ -5,6 +5,8 @@ import {
   submitBlacklistRequest,
   getInvitesByUserId,
   getDocumentById,
+  acceptInvite,
+  rejectInvite
 } from "../supabaseClient";
 
 function HomePage() {
@@ -28,6 +30,16 @@ function HomePage() {
 
     getInvitedDocs();
   }, []);
+
+  function handleAcceptInvite(docId) {
+    acceptInvite(user.id, docId)
+    setInvitedDocs((docs) => docs.filter((doc) => doc.id !== docId))
+  }
+
+  function handleRejectInvite(docId) {
+    rejectInvite(user.id, docId)
+    setInvitedDocs((docs) => docs.filter((doc) => doc.id !== docId))
+  }
 
   function handleBlacklistRequest(e) {
     e.preventDefault();
@@ -63,8 +75,8 @@ function HomePage() {
                   <b>{doc.title}</b>
                   <span>-</span>
                   <span className="username">{doc.owner}</span>
-                  <button>Accept</button>
-                  <button className="reject-btn">Reject</button>
+                  <button onClick={(e) => handleAcceptInvite(doc.id)}>Accept</button>
+                  <button onClick={(e) => handleRejectInvite(doc.id)} className="reject-btn">Reject</button>
                 </div>
               ))}
             </div>

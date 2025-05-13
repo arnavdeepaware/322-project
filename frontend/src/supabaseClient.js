@@ -155,6 +155,38 @@ export async function inviteUserToDocument(userId, documentId) {
   return data[0];
 }
 
+export async function acceptInvite(userId, documentId) {
+  const { data, error } = await supabase
+    .from("document_access")
+    .update({ access_status: "collaborator" })
+    .eq("user_id", userId)
+    .eq("document_id", documentId)
+    .select();
+
+  if (error) {
+    console.error("Error accepting invite:", error);
+    return null;
+  }
+
+  return data;
+}
+
+export async function rejectInvite(userId, documentId) {
+  const { data, error } = await supabase
+    .from("document_access")
+    .delete()
+    .eq("user_id", userId)
+    .eq("document_id", documentId)
+    .select();
+
+  if (error) {
+    console.error("Error rejecting invite:", error);
+    return null;
+  }
+
+  return data;
+}
+
 export async function getDocumentInvited(documentId) {
   const { data, error } = await supabase
     .from("document_access")
