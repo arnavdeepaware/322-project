@@ -11,10 +11,24 @@ import { useUser } from "../../../context/UserContext";
 import "../documents.css";
 
 function Document({ document }) {
-  const { user, username } = useUser();
+  const [owner, setOwner] = useState(null);
+  const [collaborators, setCollaborators] = useState(null);
   const [invited, setInvited] = useState(null);
 
   useEffect(() => {
+    getUsernameById(document.owner_id).then((uname) => setOwner(uname));
+
+    async function getCollaborators() {
+      const user_ids = await getDocumentCollaborators(document.id);
+      const usernames = await Promise.all(
+        user_ids.map(async (id) => {
+          const username = await getUsernameById(id);
+          return username;
+        })
+      );
+      setCollaborators(usernames);
+    }
+
     async function getInvited() {
       const user_ids = await getDocumentInvited(document.id);
       const usernames = await Promise.all(
@@ -26,6 +40,7 @@ function Document({ document }) {
       setInvited(usernames);
     }
 
+    getCollaborators();
     getInvited();
   }, []);
 
@@ -53,13 +68,20 @@ function Document({ document }) {
   }
 
   return (
-    invited && (
+    invited && collaborators && (
       <div className="panel document">
         <h2 className="title">{document.title}</h2>
         <h5>
-          Owner: <span className="username">{username}</span>
+          Owner: <span className="username">{owner}</span>
         </h5>
-        <h5>Collaborators: </h5>
+        <h5>
+          Collaborators:{" "}
+          {collaborators.map((username) => (
+            <span key={username} className="username">
+              {username}
+            </span>
+          ))}
+        </h5>
         <h5>
           Invited:{" "}
           {invited.map((username) => (
@@ -79,6 +101,7 @@ function Document({ document }) {
           <input type="text" name="username" />
           <button type="submit">Invite</button>
         </form>
+        <button className="delete-btn">Delete</button>
       </div>
     )
   );

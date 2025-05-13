@@ -1,25 +1,47 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import DocumentPreview from "../features/documents/components/DocumentPreview";
-import { getDocumentsByUserId } from "../supabaseClient";
+import {
+  getDocumentById,
+  getDocumentsByUserId,
+  getSharedDocumentIds,
+} from "../supabaseClient";
 import { useUser } from "../context/UserContext";
 
 function DocumentsPage() {
-  const { user, loading } = useUser();
+  const { user } = useUser();
   const [documents, setDocuments] = useState(null);
+  const [viewMode, setViewMode] = useState("own");
 
   useEffect(() => {
-    if (!loading && user) {
-      getDocumentsByUserId(user.id)
-        .then((data) => setDocuments(data))
-        .catch((err) => console.error(err));
-    }
-  }, [user, loading]);
+    async function getDocuments() {
+      if (viewMode === "own") {
+        getDocumentsByUserId(user.id)
+          .then((data) => setDocuments(data))
+          .catch((err) => console.error(err));
+      } else {
+        const doc_ids = await getSharedDocumentIds(user.id);
+        const docs = await Promise.all(
+          doc_ids.map(async (id) => {
+            const doc = await getDocumentById(id);
+            return doc;
+          })
+        );
 
-  if (loading) return <div>Loading...</div>;
+        setDocuments(docs);
+      }
+    }
+    getDocuments();
+  }, [viewMode]);
+
   if (!user) return <div>Please sign in to view your documents.</div>;
 
   return (
     <div className="documents-page">
+      <label>View Mode: </label>
+      <select name="view" onChange={(e) => setViewMode(e.target.value)}>
+        <option value="own">Own</option>
+        <option value="shared">Shared</option>
+      </select>
       <div className="documents">
         {documents?.map((document) => (
           <DocumentPreview key={document.id} document={document} />

@@ -74,6 +74,21 @@ export async function getDocumentsByUserId(id) {
   return data;
 }
 
+export async function getSharedDocumentIds(userId) {
+  const { data, error } = await supabase
+    .from("document_access")
+    .select("document_id")
+    .eq("user_id", userId)
+    .eq("access_status", "collaborator");
+
+  if (error) {
+    console.error("Error fetching shared documents:", error);
+    return null;
+  }
+
+  return data.map((entry) => entry.document_id);
+}
+
 export async function getDocumentById(id) {
   const { data, error } = await supabase
     .from("documents")
@@ -137,6 +152,21 @@ export async function updateDocument(document) {
   }
 
   return data?.[0];
+}
+
+export async function deleteDocument(documentId) {
+  const { data, error } = await supabase
+    .from("documents")
+    .delete()
+    .eq("id", documentId)
+    .select();
+
+  if (error) {
+    console.error("Error deleting document:", error);
+    return null;
+  }
+
+  return data;
 }
 
 export async function inviteUserToDocument(userId, documentId) {
