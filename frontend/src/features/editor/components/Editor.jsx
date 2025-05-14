@@ -2,13 +2,55 @@ import { useState, useEffect, useContext } from "react";
 import { useUser } from "../../../context/UserContext";
 import { produce } from "immer";
 import TextBlock from "../../../components/TextBlock";
-import { fetchErrors, fetchShakesperize, getCorrectionSegments } from "./editorUtils";
+import {
+  fetchErrors,
+  fetchShakesperize,
+  getCorrectionSegments,
+  getSelfCorrectionSegments
+} from "./editorUtils";
 import {
   getDocumentsByUserId,
   createDocument,
   updateDocument,
 } from "../../../supabaseClient";
 import "../Editor.css";
+
+function SelfCorrectedText({
+  segments,
+  setSegments,
+  selfCorrectedWords,
+  setSelfCorrectedWords,
+}) {
+  function handleEditSegment(e, index) {
+    // must later decrement tokens in this part
+    if (!(index in selfCorrectedWords)) {
+      setSelfCorrectedWords((prev) => ({
+        ...prev,
+        [index]: true,
+      }));
+    }
+
+    setSegments(
+      segments.map((segment, i) =>
+        index === i ? { ...segment, text: e.target.value } : segment
+      )
+    );
+  }
+
+  return (
+    <div className="segments">
+      {segments.map((segment, index) => (
+        <input
+          key={index}
+          className="highlighted editable-segment"
+          value={segment.text}
+          style={{ width: `${segment.text.length + 1}ch` }}
+          onChange={(e) => handleEditSegment(e, index)}
+        />
+      ))}
+    </div>
+  );
+}
 
 function HighlightedText({ segments, selectedError }) {
   const segmentSpans = segments.map((segment, i) => {
@@ -48,13 +90,15 @@ function HighlightedText({ segments, selectedError }) {
 }
 
 function Editor() {
+  const [mode, setMode] = useState("llm");
   const [documents, setDocuments] = useState(null);
   const [selectedDocument, setSelectedDocument] = useState(null);
-  const [documentTitle, setDocumentTitle] = useState("New Document");  // add title state
+  const [documentTitle, setDocumentTitle] = useState("New Document"); // add title state
   const [input, setInput] = useState("");
   const [shakesText, setShakesText] = useState("");
   const [segments, setSegments] = useState([]);
   const [selectedError, setSelectedError] = useState(0);
+  const [selfCorrectedWords, setSelfCorrectedWords] = useState({});
   const { user, handleTokenChange } = useUser();
 
   async function handleShakesperize(text) {
@@ -70,13 +114,21 @@ function Editor() {
     getDocumentsByUserId(user.id).then((data) => setDocuments(data));
   }, []);
 
+  function toggleMode(e) {
+    const newMode = e.target.value;
+    setMode(newMode);
+    setSegments([]);
+    setSelectedError(0);
+    console.log("set to ", newMode);
+  }
+
   function handleSelectDocument(e) {
     const docId = e.target.value;
     if (docId === "") {
       console.log("setting document to null");
       setSelectedDocument(null);
       setInput("");
-      setDocumentTitle("");  // reset title
+      setDocumentTitle(""); // reset title
       return;
     }
 
@@ -84,7 +136,7 @@ function Editor() {
     console.log(doc);
     setSelectedDocument(doc);
     setInput(doc.content);
-    setDocumentTitle(doc.title || '');  // load existing title
+    setDocumentTitle(doc.title || ""); // load existing title
   }
 
   const handleSubmit = async (text) => {
@@ -93,9 +145,14 @@ function Editor() {
     const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
     handleTokenChange(-wordCount);
 
-    const errors = await fetchErrors(text);
-    setSegments(getCorrectionSegments(text, errors));
-    setSelectedError(0);
+    if (mode === "llm") {
+      const errors = await fetchErrors(text);
+      setSegments(getCorrectionSegments(text, errors));
+      setSelectedError(0);
+    } else if (mode === "self") {
+      setSegments(getSelfCorrectionSegments(text));
+      console.log(getSelfCorrectionSegments(text));
+    }
   };
 
   function handleAccept() {
@@ -121,26 +178,45 @@ function Editor() {
     setSelectedError((prev) => prev + 1);
   }
 
-  const duplicateDoc = !selectedDocument && documents?.find(doc => doc.title === documentTitle);
+  const duplicateDoc =
+    !selectedDocument && documents?.find((doc) => doc.title === documentTitle);
 
   async function handleSave() {
     // choose shakesText if present, otherwise build corrected text
-    const contentToSave = shakesText
-      ? shakesText
-      : segments
-          .map((segment) =>
-            segment.type === "normal" || segment.status !== "accepted"
-              ? segment.text
-              : segment.correction
-          )
-          .join("");
+    let contentToSave;
+
+    if (shakesText) {
+      contentToSave = segments
+        .map((segment) =>
+          segment.type === "normal" || segment.status !== "accepted"
+            ? segment.text
+            : segment.correction
+        )
+        .join("");
+    } else if (mode === "llm") {
+      contentToSave = segments
+        .map((segment) =>
+          segment.type === "normal" || segment.status !== "accepted"
+            ? segment.text
+            : segment.correction
+        )
+        .join("");
+    } else {
+      contentToSave = segments.map((segment) => segment.text).join(" ");
+    }
 
     if (selectedDocument || duplicateDoc) {
       const doc = selectedDocument || duplicateDoc;
       console.log("updating document", doc.id);
-      const updatedDoc = { ...doc, content: contentToSave, title: documentTitle };
+      const updatedDoc = {
+        ...doc,
+        content: contentToSave,
+        title: documentTitle,
+      };
       setSelectedDocument(updatedDoc);
-      setDocuments(documents.map((d) => (d.id === updatedDoc.id ? updatedDoc : d)));
+      setDocuments(
+        documents.map((d) => (d.id === updatedDoc.id ? updatedDoc : d))
+      );
       await updateDocument(updatedDoc);
       console.log("Document updated successfully", updatedDoc.id);
     } else {
@@ -153,20 +229,32 @@ function Editor() {
 
   function handleDownload() {
     // choose current content for download
-    const contentToDownload = shakesText
-      ? shakesText
-      : segments
-          .map((segment) =>
-            segment.type === "normal" || segment.status !== "accepted"
-              ? segment.text
-              : segment.correction
-          )
-          .join("");
+    let contentToDownload;
+
+    if (shakesText) {
+      contentToDownload = segments
+        .map((segment) =>
+          segment.type === "normal" || segment.status !== "accepted"
+            ? segment.text
+            : segment.correction
+        )
+        .join("");
+    } else if (mode === "llm") {
+      contentToDownload = segments
+        .map((segment) =>
+          segment.type === "normal" || segment.status !== "accepted"
+            ? segment.text
+            : segment.correction
+        )
+        .join("");
+    } else {
+      contentToDownload = segments.map((segment) => segment.text).join(" ");
+    }
+
     const blob = new Blob([contentToDownload], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href
-      = url;
+    a.href = url;
     a.download = documentTitle || "download.txt";
     document.body.appendChild(a);
     a.click();
@@ -181,10 +269,10 @@ function Editor() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target.result;
-      const name = file.name.replace(/\.txt$/i, '');
+      const name = file.name.replace(/\.txt$/i, "");
       setSelectedDocument(null);
       setInput(text);
-      setDocumentTitle(name);  // set title from file name
+      setDocumentTitle(name); // set title from file name
       setSegments([]);
       setSelectedError(0);
     };
@@ -217,22 +305,28 @@ function Editor() {
             value={documentTitle}
             onChange={(e) => setDocumentTitle(e.target.value)}
             className="document-name-input"
-            style={{ marginLeft: '1rem' }}
+            style={{ marginLeft: "1rem" }}
           />
 
           <input
             type="file"
             accept=".txt"
             onChange={handleFileUpload}
-            style={{ marginLeft: '1rem' }}
+            style={{ marginLeft: "1rem" }}
           />
+
+          <label>Mode: </label>
+          <select value={mode} onChange={toggleMode}>
+            <option value="llm">LLM Correction</option>
+            <option value="self">Self-correction</option>
+          </select>
 
           {/* New Save & Download Buttons */}
           <button
             type="button"
             className="save-btn"
             onClick={handleSave}
-            style={{ marginLeft: '1rem' }}
+            style={{ marginLeft: "1rem" }}
             disabled={!(segments.length > 0 || shakesText)}
           >
             Save Document
@@ -241,7 +335,7 @@ function Editor() {
             type="button"
             className="download-btn"
             onClick={handleDownload}
-            style={{ marginLeft: '0.5rem' }}
+            style={{ marginLeft: "0.5rem" }}
             disabled={!(segments.length > 0 || shakesText)}
           >
             Download Document
@@ -264,7 +358,7 @@ function Editor() {
                 onClick={() => handleShakesperize(input)}
               >
                 Shakesperize
-              </button>
+              </button>,
             ]}
           />
 
@@ -280,10 +374,19 @@ function Editor() {
             <TextBlock
               title="Corrected Text"
               text={
-                <HighlightedText
-                  segments={segments}
-                  selectedError={selectedError}
-                />
+                mode === "llm" ? (
+                  <HighlightedText
+                    segments={segments}
+                    selectedError={selectedError}
+                  />
+                ) : (
+                  <SelfCorrectedText
+                    segments={segments}
+                    setSegments={setSegments}
+                    setSelfCorrectedWords={setSelfCorrectedWords}
+                    selfCorrectedWords={selfCorrectedWords}
+                  />
+                )
               }
               isEditable={false}
               buttons={[
@@ -303,7 +406,7 @@ function Editor() {
                 >
                   Reject
                 </button>,
-                ]}
+              ]}
             />
           )}
         </div>

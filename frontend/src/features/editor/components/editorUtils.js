@@ -61,3 +61,9 @@ export function getCorrectionSegments(text, errors) {
 
   return segments;
 }
+
+export function getSelfCorrectionSegments(text) {
+  const words = text.split(/\s+/);
+
+  return words.map((word) => ({ text: word, type: "normal" }));
+}
