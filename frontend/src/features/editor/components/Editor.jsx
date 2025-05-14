@@ -12,6 +12,8 @@ import {
   getDocumentsByUserId,
   createDocument,
   updateDocument,
+  getSharedDocumentIds,
+  getDocumentById,
 } from "../../../supabaseClient";
 import "../Editor.css";
 
@@ -21,6 +23,8 @@ function SelfCorrectedText({
   selfCorrectedWords,
   setSelfCorrectedWords,
 }) {
+  const [selected, setSelected] = useState();
+
   function handleEditSegment(e, index) {
     // must later decrement tokens in this part
     if (!(index in selfCorrectedWords)) {
@@ -42,10 +46,14 @@ function SelfCorrectedText({
       {segments.map((segment, index) => (
         <input
           key={index}
-          className="highlighted editable-segment"
+          className={
+            "highlighted editable-segment" +
+            (index === selected ? " selected" : "")
+          }
           value={segment.text}
           style={{ width: `${segment.text.length + 1}ch` }}
           onChange={(e) => handleEditSegment(e, index)}
+          onClick={() => setSelected(index)}
         />
       ))}
     </div>
@@ -111,7 +119,20 @@ function Editor() {
   }
 
   useEffect(() => {
-    getDocumentsByUserId(user.id).then((data) => setDocuments(data));
+    async function getDocuments() {
+      const owned = await getDocumentsByUserId(user.id);
+      const shared_ids = await getSharedDocumentIds(user.id);
+      const shared = await Promise.all(
+        shared_ids.map(async (id) => {
+          const doc = await getDocumentById(id);
+          return doc;
+        })
+      );
+
+      setDocuments([...owned, ...shared]);
+    }
+
+    getDocuments();
   }, []);
 
   function toggleMode(e) {
@@ -141,7 +162,7 @@ function Editor() {
 
   const handleSubmit = async (text) => {
     setShakesText("");
-    setInput(text);
+    setInput(text.trim());
     const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
     handleTokenChange(-wordCount);
 
