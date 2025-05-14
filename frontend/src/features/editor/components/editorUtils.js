@@ -9,6 +9,16 @@ export async function fetchErrors(text) {
   return data;
 }
 
+export async function fetchShakesperize(text) {
+  const response = await fetch("http://localhost:5000/shakesperize", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  const data = await response.json();
+  return data.text;
+}
+
 export function getCorrectionSegments(text, errors) {
   // Create segments by splitting at error locations
   let segments = [];

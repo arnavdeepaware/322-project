@@ -66,6 +66,20 @@ def check_for_errors(text):
     content = res.choices[0].message.content.strip().replace('```json','').replace('```','').strip()
     return content
 
+def shakesperize_text(text):
+    system = (
+        "Convert the the given input text into Shakespearean English, preserving the original meaning but using appropriate vocabulary, style, and expressions from the Elizabethan era."
+    )
+    user = f"Input Text: \"{text}\""
+    res = openai.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user}
+        ],
+        temperature=0.3
+    )
+    return res.choices[0].message.content.strip()
 
 # def replace_Text(text, errors):
 #     system = (

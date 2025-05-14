@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from text_correction import check_for_errors, check_for_errors_legacy
+from text_correction import check_for_errors, check_for_errors_legacy, shakesperize_text
 from flask_cors import CORS
 from diff_match_patch import diff_match_patch
 
@@ -39,6 +39,14 @@ def check():
                 idx += len(chunk)
 
     return jsonify(ops) 
+
+@app.route('/shakesperize', methods=['POST'])
+def shakesperize():
+    data = request.json
+    if 'text' not in data:
+        return jsonify({"error": "Text input is required"}), 400
+    result = shakesperize_text(data['text'])
+    return jsonify({"text": result})
 
 # @app.route('/correct', methods=['POST'])
 # def correct():

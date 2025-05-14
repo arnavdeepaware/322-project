@@ -2,7 +2,7 @@ import { useState, useEffect, useContext } from "react";
 import { useUser } from "../../../context/UserContext";
 import { produce } from "immer";
 import TextBlock from "../../../components/TextBlock";
-import { fetchErrors, getCorrectionSegments } from "./editorUtils";
+import { fetchErrors, fetchShakesperize, getCorrectionSegments } from "./editorUtils";
 import {
   getDocumentsByUserId,
   createDocument,
@@ -52,9 +52,19 @@ function Editor() {
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [documentTitle, setDocumentTitle] = useState("New Document");  // add title state
   const [input, setInput] = useState("");
+  const [shakesText, setShakesText] = useState("");
   const [segments, setSegments] = useState([]);
   const [selectedError, setSelectedError] = useState(0);
   const { user, handleTokenChange } = useUser();
+
+  async function handleShakesperize(text) {
+    setInput(text);
+    // deduct 3 tokens
+    handleTokenChange(-3);
+    // use the passed text to ensure latest value
+    const result = await fetchShakesperize(text);
+    setShakesText(result);
+  }
 
   useEffect(() => {
     getDocumentsByUserId(user.id).then((data) => setDocuments(data));
@@ -78,6 +88,7 @@ function Editor() {
   }
 
   const handleSubmit = async (text) => {
+    setShakesText("");
     setInput(text);
     const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
     handleTokenChange(-wordCount);
@@ -113,51 +124,55 @@ function Editor() {
   const duplicateDoc = !selectedDocument && documents?.find(doc => doc.title === documentTitle);
 
   async function handleSave() {
-    const modifiedText = segments
-      .map((segment) =>
-        segment.type === "normal" || segment.status !== "accepted"
-          ? segment.text
-          : segment.correction
-      )
-      .join("");
+    // choose shakesText if present, otherwise build corrected text
+    const contentToSave = shakesText
+      ? shakesText
+      : segments
+          .map((segment) =>
+            segment.type === "normal" || segment.status !== "accepted"
+              ? segment.text
+              : segment.correction
+          )
+          .join("");
 
     if (selectedDocument || duplicateDoc) {
       const doc = selectedDocument || duplicateDoc;
       console.log("updating document", doc.id);
-      const modifiedDocument = { ...doc, content: modifiedText, title: documentTitle };
-      const updatedDocuments = documents.map((d) =>
-        d.id === modifiedDocument.id ? modifiedDocument : d
-      );
-      setSelectedDocument(modifiedDocument);
-      setDocuments(updatedDocuments);
-      await updateDocument(modifiedDocument);
-      console.log("Document updated successfully", modifiedDocument.id);
+      const updatedDoc = { ...doc, content: contentToSave, title: documentTitle };
+      setSelectedDocument(updatedDoc);
+      setDocuments(documents.map((d) => (d.id === updatedDoc.id ? updatedDoc : d)));
+      await updateDocument(updatedDoc);
+      console.log("Document updated successfully", updatedDoc.id);
     } else {
       console.log("creating new document");
-      await createDocument(user.id, modifiedText, documentTitle);
+      await createDocument(user.id, contentToSave, documentTitle);
     }
 
     handleTokenChange(-5);
-
   }
-    function handleDonwload() {
-    const modifiedText = segments
-      .map((segment) =>
-        segment.type === "normal" || segment.status !== "accepted"
-          ? segment.text
-          : segment.correction
-      )
-      .join("");
-    const blob = new Blob([modifiedText], { type: "text/plain" });
+
+  function handleDownload() {
+    // choose current content for download
+    const contentToDownload = shakesText
+      ? shakesText
+      : segments
+          .map((segment) =>
+            segment.type === "normal" || segment.status !== "accepted"
+              ? segment.text
+              : segment.correction
+          )
+          .join("");
+    const blob = new Blob([contentToDownload], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href
       = url;
-    a.download = documentTitle || "corrected_text.txt";  // use document title or default name
+    a.download = documentTitle || "download.txt";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    handleTokenChange(-5);
   }
   // Add file import handler to load .txt files into the editor
   function handleFileUpload(e) {
@@ -195,7 +210,7 @@ function Editor() {
               </option>
             ))}
           </select>
-          {/* Document name input */}
+
           <input
             type="text"
             placeholder="Document Name"
@@ -204,59 +219,93 @@ function Editor() {
             className="document-name-input"
             style={{ marginLeft: '1rem' }}
           />
-          {/* File input for importing .txt files */}
+
           <input
             type="file"
             accept=".txt"
             onChange={handleFileUpload}
             style={{ marginLeft: '1rem' }}
           />
+
+          {/* New Save & Download Buttons */}
+          <button
+            type="button"
+            className="save-btn"
+            onClick={handleSave}
+            style={{ marginLeft: '1rem' }}
+            disabled={!(segments.length > 0 || shakesText)}
+          >
+            Save Document
+          </button>
+          <button
+            type="button"
+            className="download-btn"
+            onClick={handleDownload}
+            style={{ marginLeft: '0.5rem' }}
+            disabled={!(segments.length > 0 || shakesText)}
+          >
+            Download Document
+          </button>
         </div>
+
         <div className="editor-text-blocks">
           <TextBlock
             title="Input Text"
             text={input}
             isEditable={true}
             onSubmit={handleSubmit}
+            onChange={setInput}
             submitLabel="Correct"
-          />
-          <hr />
-          <TextBlock
-            title="Corrected Text"
-            text={
-              <HighlightedText
-                segments={segments}
-                selectedError={selectedError}
-              />
-            }
-            isEditable={false}
-            onSubmit={handleSave}
-            submitLabel={selectedDocument || duplicateDoc ? "Update Text" : "Save Text"}
             buttons={[
               <button
-                className="accept-btn"
-                key="accept"
+                key="shake"
                 type="button"
-                onClick={handleAccept}
+                className="shake-btn"
+                onClick={() => handleShakesperize(input)}
               >
-                Accept
-              </button>,
-              <button
-                className="reject-btn"
-                key="reject"
-                type="button"
-                onClick={handleReject}
-              >
-                Reject
-              </button>,
-              <button
-                className="download-btn"
-                key="download"
-                type="button"
-                onClick={handleDonwload}
-                >Download</button>,
+                Shakesperize
+              </button>
             ]}
-          ></TextBlock>
+          />
+
+          <hr />
+
+          {shakesText ? (
+            <TextBlock
+              title="Shakesperized Text"
+              text={shakesText}
+              isEditable={false}
+            />
+          ) : (
+            <TextBlock
+              title="Corrected Text"
+              text={
+                <HighlightedText
+                  segments={segments}
+                  selectedError={selectedError}
+                />
+              }
+              isEditable={false}
+              buttons={[
+                <button
+                  key="accept"
+                  className="accept-btn"
+                  type="button"
+                  onClick={handleAccept}
+                >
+                  Accept
+                </button>,
+                <button
+                  key="reject"
+                  className="reject-btn"
+                  type="button"
+                  onClick={handleReject}
+                >
+                  Reject
+                </button>,
+                ]}
+            />
+          )}
         </div>
       </div>
     )

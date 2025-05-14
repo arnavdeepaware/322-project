@@ -6,13 +6,16 @@ function TextBlock({
   text = "",
   isEditable,
   onSubmit,
+  onChange,
   submitLabel = "Submit Text",
   buttons,
 }) {
   const [inputValue, setInputValue] = useState(text);
 
   function handleChange(e) {
-    setInputValue(e.target.value);
+    const newVal = e.target.value;
+    setInputValue(newVal);
+    onChange?.(newVal);
   }
 
   function handleSubmit(e) {
