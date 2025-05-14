@@ -112,10 +112,10 @@ export async function incrementTokens(amount) {
   }
 }
 
-export async function createDocument(userId, text,title) {
+export async function createDocument(userId, text, title) {
   const { data, error } = await supabase
     .from("documents")
-    .insert([{ owner_id: userId, content: text, title:title }])
+    .insert([{ owner_id: userId, content: text, title: title }])
     .select();
 
   if (error) {
@@ -134,8 +134,6 @@ export async function createDocument(userId, text,title) {
     console.error("Error updating document access:", error2);
     return null;
   }
-
-  return data2[0];
 }
 
 export async function updateDocument(document) {

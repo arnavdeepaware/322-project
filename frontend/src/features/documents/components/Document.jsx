@@ -6,15 +6,23 @@ import {
   getDocumentInvited,
   getDocumentCollaborators,
   updateDocument,
+  deleteDocument
 } from "../../../supabaseClient";
 import { useUser } from "../../../context/UserContext";
 import "../documents.css";
+import { useNavigate } from "react-router";
 
 function Document({ document }) {
   const { user } = useUser();
   const [owner, setOwner] = useState(null);
   const [collaborators, setCollaborators] = useState(null);
   const [invited, setInvited] = useState(null);
+  const navigate = useNavigate();
+  
+  function handleDelete() {
+    deleteDocument(document.id);
+    navigate("/documents");
+  }
 
   useEffect(() => {
     getUsernameById(document.owner_id).then((uname) => setOwner(uname));
@@ -104,7 +112,7 @@ function Document({ document }) {
           <button type="submit">Invite</button>
         </form>
         {document.owner_id === user.id && (
-          <button className="delete-btn">Delete</button>
+          <button className="delete-btn" onClick={handleDelete}>Delete</button>
         )}
       </div>
     )
