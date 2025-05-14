@@ -6,7 +6,7 @@ import {
   fetchErrors,
   fetchShakesperize,
   getCorrectionSegments,
-  getSelfCorrectionSegments
+  getSelfCorrectionSegments,
 } from "./editorUtils";
 import {
   getDocumentsByUserId,
@@ -308,19 +308,6 @@ function Editor() {
             style={{ marginLeft: "1rem" }}
           />
 
-          <input
-            type="file"
-            accept=".txt"
-            onChange={handleFileUpload}
-            style={{ marginLeft: "1rem" }}
-          />
-
-          <label>Mode: </label>
-          <select value={mode} onChange={toggleMode}>
-            <option value="llm">LLM Correction</option>
-            <option value="self">Self-correction</option>
-          </select>
-
           {/* New Save & Download Buttons */}
           <button
             type="button"
@@ -340,6 +327,21 @@ function Editor() {
           >
             Download Document
           </button>
+
+          <div className="editor-header2">
+            <label>Upload Document: </label>
+            <input
+              type="file"
+              accept=".txt"
+              onChange={handleFileUpload}
+              style={{ marginLeft: "1rem" }}
+            />
+            <label>Mode: </label>
+            <select value={mode} onChange={toggleMode}>
+              <option value="llm">LLM Correction</option>
+              <option value="self">Self-correction</option>
+            </select>
+          </div>
         </div>
 
         <div className="editor-text-blocks">
@@ -389,24 +391,28 @@ function Editor() {
                 )
               }
               isEditable={false}
-              buttons={[
-                <button
-                  key="accept"
-                  className="accept-btn"
-                  type="button"
-                  onClick={handleAccept}
-                >
-                  Accept
-                </button>,
-                <button
-                  key="reject"
-                  className="reject-btn"
-                  type="button"
-                  onClick={handleReject}
-                >
-                  Reject
-                </button>,
-              ]}
+              buttons={
+                mode === "llm"
+                  ? [
+                      <button
+                        key="accept"
+                        className="accept-btn"
+                        type="button"
+                        onClick={handleAccept}
+                      >
+                        Accept
+                      </button>,
+                      <button
+                        key="reject"
+                        className="reject-btn"
+                        type="button"
+                        onClick={handleReject}
+                      >
+                        Reject
+                      </button>,
+                    ]
+                  : null
+              }
             />
           )}
         </div>

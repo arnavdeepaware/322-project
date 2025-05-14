@@ -6,6 +6,15 @@
   padding: 0px 10px;
 }
 
+.editor-header2 {
+  margin: 5px;
+  display: flex;
+  flex-direction: row;
+  /* justify-content: flex-end; */
+  align-items: center;
+  gap: 5px
+}
+
 .editor .document-select {
   align-self: flex-start;
 }
@@ -18,8 +27,8 @@
 }
 
 .editor .text-block-input {
-  width: 25vw;
-  height: 45vh;
+  width: 35vw;
+  height: 40vh;
   resize: none;
   border: 2px #3498db solid;
   border-radius: 10px;
@@ -33,6 +42,11 @@
 
 .editor h2 {
   color: #3498db;
+}
+
+.editor .editable-segment {
+  margin: 0;
+  border: none;
 }
 
 /* Highlighted suggestion spans */

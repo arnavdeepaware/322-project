@@ -107,6 +107,7 @@ button:active {
 
 .panel .panel {
   box-shadow: none;
+  padding: 5px;
 }
 
 .panel .title {
