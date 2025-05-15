@@ -9,10 +9,31 @@ export function UserProvider({ children }) {
   const [username, setUsername] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tokens, setTokens] = useState(0);
+  const [guest, setGuest] = useState(false);
 
   function handleTokenChange(k) {
     setTokens((prev) => prev + k);
     incrementTokens(k);
+  }
+
+  function signInAsGuest() {
+    const now = Date.now();
+    const last = parseInt(localStorage.getItem("lastGuestLogin"));
+    // enforce 3-minute cooldown
+    if (last && now - last < 3 * 60 * 1000) {
+      alert("Please wait a few minutes before signing in as guest again.");
+      return;
+    }
+    localStorage.setItem("lastGuestLogin", now.toString());
+    setGuest(true);
+    setUser(null);
+    setLoading(false);
+    setTokens(0);
+  }
+
+  function signOutGuest() {
+    setGuest(false);
+    localStorage.removeItem("lastGuestLogin");
   }
 
   const fetchTokenBalance = async (userId) => {
@@ -38,6 +59,9 @@ export function UserProvider({ children }) {
       setUser(session?.user || null);
       setLoading(false);
 
+      // if logged in via OAuth, clear guest state
+      if (session?.user) signOutGuest();
+
       if (session?.user) {
         fetchTokenBalance(session.user.id);
         getUsernameById(session.user.id).then((uname) => setUsername(uname));
@@ -51,6 +75,8 @@ export function UserProvider({ children }) {
       (_event, session) => {
         setUser(session?.user || null);
         if (session?.user) {
+          // clear guest on real login
+          signOutGuest();
           fetchTokenBalance(session.user.id);
           getUsernameById(session.user.id).then((uname) => setUsername(uname));
         } else {
@@ -63,7 +89,18 @@ export function UserProvider({ children }) {
   }, [tokens]);
 
   return (
-    <UserContext.Provider value={{ user, username, loading, tokens, handleTokenChange }}>
+    <UserContext.Provider
+      value={{
+        user,
+        username,
+        loading,
+        tokens,
+        guest,
+        handleTokenChange,
+        signInAsGuest,
+        signOutGuest,
+      }}
+    >
       {children}
     </UserContext.Provider>
   );
