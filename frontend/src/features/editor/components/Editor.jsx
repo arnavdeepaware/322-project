@@ -113,18 +113,29 @@ function Editor() {
 
   useEffect(() => {
     async function fetchDocs() {
-      const owned = await getDocumentsByUserId(user.id);
-      const shared_ids = await getSharedDocumentIds(user.id);
-      const shared = await Promise.all(
-        shared_ids.map((id) => getDocumentById(id))
-      );
-      setDocuments([...owned, ...shared]);
+      try {
+        const owned = await getDocumentsByUserId(user.id);
+        const shared_ids = await getSharedDocumentIds(user.id);
+        const shared = await Promise.all(
+          shared_ids.map((id) => getDocumentById(id))
+        );
+        setDocuments([...owned, ...shared]);
+      } catch (e) {
+        console.error("Error fetching documents:", e);
+        setError("Failed to load documents");
+      } finally {
+        setLoading(false);
+      }
     }
-    // only fetch when real user is present; guests see no documents
     if (user) {
       fetchDocs();
     } else if (guest) {
       setDocuments([]);
+      setLoading(false);
+    } else {
+      // no session
+      setDocuments([]);
+      setLoading(false);
     }
   }, [user, guest]);
 
