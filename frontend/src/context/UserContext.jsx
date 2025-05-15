@@ -9,7 +9,6 @@ export function UserProvider({ children }) {
   const [username, setUsername] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tokens, setTokens] = useState(0);
-  const [guest, setGuest] = useState(false);
 
   function handleTokenChange(k) {
     setTokens((prev) => prev + k);
@@ -59,9 +58,6 @@ export function UserProvider({ children }) {
       setUser(session?.user || null);
       setLoading(false);
 
-      // if logged in via OAuth, clear guest state
-      if (session?.user) signOutGuest();
-
       if (session?.user) {
         fetchTokenBalance(session.user.id);
         getUsernameById(session.user.id).then((uname) => setUsername(uname));
@@ -75,8 +71,6 @@ export function UserProvider({ children }) {
       (_event, session) => {
         setUser(session?.user || null);
         if (session?.user) {
-          // clear guest on real login
-          signOutGuest();
           fetchTokenBalance(session.user.id);
           getUsernameById(session.user.id).then((uname) => setUsername(uname));
         } else {
@@ -89,18 +83,7 @@ export function UserProvider({ children }) {
   }, [tokens]);
 
   return (
-    <UserContext.Provider
-      value={{
-        user,
-        username,
-        loading,
-        tokens,
-        guest,
-        handleTokenChange,
-        signInAsGuest,
-        signOutGuest,
-      }}
-    >
+    <UserContext.Provider value={{ user, username, loading, tokens, handleTokenChange }}>
       {children}
     </UserContext.Provider>
   );

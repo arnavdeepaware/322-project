@@ -11,33 +11,26 @@ import {
 } from "../supabaseClient";
 
 function HomePage() {
-  const { user, loading, guest } = useUser();
+  const { user, loading } = useUser();
   const [username, setUsername] = useState(null);
-  const [invitedDocs, setInvitedDocs] = useState([]);
+  const [invitedDocs, setInvitedDocs] = useState(null);
 
   useEffect(() => {
-    if (loading) return;
-    if (user) {
-      // real user: fetch username and invites
-      getUsernameById(user.id).then((uname) => setUsername(uname));
-      async function fetchInvites() {
-        const doc_ids = await getInvitesByUserId(user.id);
-        const docs = await Promise.all(
-          doc_ids.map(async (id) => {
-            const doc = await getDocumentById(id);
-            const owner = await getUsernameById(doc.owner_id);
-            return { ...doc, owner };
-          })
-        );
-        setInvitedDocs(docs);
-      }
-      fetchInvites();
-    } else if (guest) {
-      // guest user: set placeholder
-      setUsername("Guest");
-      setInvitedDocs([]);
+    getUsernameById(user.id).then((uname) => setUsername(uname));
+    async function getInvitedDocs() {
+      const doc_ids = await getInvitesByUserId(user.id);
+      const docs = await Promise.all(
+        doc_ids.map(async (id) => {
+          const doc = await getDocumentById(id);
+          const owner = await getUsernameById(doc.owner_id);
+          return { ...doc, owner };
+        })
+      );
+      setInvitedDocs(docs);
     }
-  }, [user, guest, loading]);
+
+    getInvitedDocs();
+  }, []);
 
   function handleAcceptInvite(docId) {
     acceptInvite(user.id, docId);
@@ -66,7 +59,9 @@ function HomePage() {
     e.target.word.value = "";
   }
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="home-page">
