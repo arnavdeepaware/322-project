@@ -1,7 +1,8 @@
+import React from 'react';
 import { useUser } from '../../../context/UserContext';
 
 function EditorStats() {
-  const { isPaid, statistics } = useUser();
+  const { user, isPaid, statistics } = useUser();
 
   if (!isPaid) return null;
 

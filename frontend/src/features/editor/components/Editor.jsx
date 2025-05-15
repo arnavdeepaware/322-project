@@ -3,6 +3,7 @@ import { useUser } from "../../../context/UserContext";
 import { produce } from "immer";
 import TextBlock from "../../../components/TextBlock";
 import EditorStats from './EditorStats';
+import { supabase } from "../../../supabaseClient"; // Add this import
 import {
   censorText,
   fetchErrors,
@@ -101,6 +102,7 @@ function HighlightedText({ segments, selectedError }) {
 }
 
 function Editor() {
+  const { handleTokenChange, updateStatistics, user, guest } = useUser();
   const [mode, setMode] = useState("llm");
   const [documents, setDocuments] = useState([]);
   const [selectedDocument, setSelectedDocument] = useState(null);
@@ -113,16 +115,45 @@ function Editor() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [blacklistWords, setBlacklistWords] = useState(null);
-  const { user, guest, handleTokenChange } = useUser();
 
-  async function handleShakesperize(text) {
-    setInput(text);
-    // deduct 3 tokens
-    handleTokenChange(-3);
-    // use the passed text to ensure latest value
-    const result = await fetchShakesperize(text);
-    setShakesText(result);
-  }
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user: authUser }, error } = await supabase.auth.getUser();
+      console.log('Current auth state:', {
+        user: authUser,
+        error,
+        contextUser: user
+      });
+    };
+    
+    checkAuth();
+  }, [user]);
+
+  const handleShakesperize = async (text) => {
+    try {
+      setInput(text);
+      const TOKEN_COST = 3;
+
+      const { error } = await supabase.rpc('update_user_stats', {
+        p_user_id: user.id,
+        p_used_tokens: TOKEN_COST,
+        p_edited_texts: 1,
+        p_corrections: 0
+      });
+
+      if (error) throw error;
+      
+      // Update local state
+      handleTokenChange(-TOKEN_COST);
+      updateStatistics('usedTokens', TOKEN_COST);
+      updateStatistics('editedTexts', 1);
+      
+      const result = await fetchShakesperize(text);
+      setShakesText(result);
+    } catch (error) {
+      console.error('Error updating statistics:', error);
+    }
+  };
 
   useEffect(() => {
     async function getDocuments() {
@@ -181,55 +212,89 @@ function Editor() {
   }
 
   const handleSubmit = async (text) => {
-    setShakesText("");
+    try {
+      const censored = censorText(text, blacklistWords);
+      const trimmed = censored.trim();
+      const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
+      const censorCost = censored.split("*").length - 1;
+      const totalCost = censorCost + wordCount;
 
-    const censored = censorText(text, blacklistWords);
-    handleTokenChange(-(censored.split("*").length - 1));
-
-    const trimmed = censored.trim();
-    const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
-    // free guest users can only submit up to 20 words
-    if (guest && wordCount > 20) {
-      alert("Guest users may only submit up to 20 words.");
-      return;
-    }
-    setInput(trimmed);
-    handleTokenChange(-wordCount);
-
-    if (mode === "llm") {
-      const errors = await fetchErrors(text);
-      
-      //console.log("Errors: ", errors[0].correction);
-      console.log("Errors: ", errors.length);
-
-      // bonus of 3 tokens if over 10 words and no errors
-      if (
-        wordCount >= 10 &&
-        (errors.length === 0 ||
-          errors[0].correction.trim() == "No errors found." ||
-          errors[0].correction.trim() === text.trim())
-      ) {
-        console.log("Yer a genius Harry!");
-        handleTokenChange(3);
+      if (guest && wordCount > 20) {
+        alert("Guest users may only submit up to 20 words.");
+        return;
       }
-      setSegments(getCorrectionSegments(trimmed, errors));
-      setSelectedError(0);
-    } else if (mode === "self") {
-      setSegments(getSelfCorrectionSegments(trimmed));
+
+      // Update stats using the new function
+      const { error } = await supabase.rpc('update_user_stats', {
+        p_user_id: user.id,
+        p_used_tokens: totalCost,
+        p_edited_texts: 1,
+        p_corrections: 0
+      });
+
+      if (error) throw error;
+
+      // Update local state
+      handleTokenChange(-totalCost);
+      updateStatistics('usedTokens', totalCost);
+      updateStatistics('editedTexts', 1);
+
+      // Process text based on mode
+      if (mode === "llm") {
+        const errors = await fetchErrors(text);
+        
+        console.log("Errors: ", errors.length);
+
+        if (
+          wordCount >= 10 &&
+          (errors.length === 0 ||
+            errors[0].correction.trim() == "No errors found." ||
+            errors[0].correction.trim() === text.trim())
+        ) {
+          console.log("Yer a genius Harry!");
+          handleTokenChange(3);
+        }
+        setSegments(getCorrectionSegments(trimmed, errors));
+        setSelectedError(0);
+      } else if (mode === "self") {
+        setSegments(getSelfCorrectionSegments(trimmed));
+      }
+    } catch (error) {
+      console.error('Error updating statistics:', error);
     }
   };
 
-  function handleAccept() {
-    if (2 * selectedError + 1 >= segments.length) return;
+  const handleAccept = async () => {
+    try {
+      if (2 * selectedError + 1 >= segments.length) return;
+      const TOKEN_COST = 1;
 
-    setSegments((prev) =>
-      produce(prev, (draft) => {
-        draft[2 * selectedError + 1].status = "accepted";
-      })
-    );
-    setSelectedError((prev) => prev + 1);
-    handleTokenChange(-1);
-  }
+      // Update user stats directly
+      const { error } = await supabase
+        .from('users')
+        .update({
+          tokens: supabase.raw('tokens - ?', [TOKEN_COST]),
+          used_tokens: supabase.raw('used_tokens + ?', [TOKEN_COST]),
+          corrections: supabase.raw('corrections + 1')
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      // Update UI
+      setSegments((prev) =>
+        produce(prev, (draft) => {
+          draft[2 * selectedError + 1].status = "accepted";
+        })
+      );
+      setSelectedError((prev) => prev + 1);
+      handleTokenChange(-TOKEN_COST);
+      updateStatistics('usedTokens', TOKEN_COST);
+      updateStatistics('corrections', 1);
+    } catch (error) {
+      console.error('Error updating statistics:', error);
+    }
+  };
 
   function handleReject() {
     if (2 * selectedError + 1 >= segments.length) return;
@@ -245,88 +310,121 @@ function Editor() {
   const duplicateDoc =
     !selectedDocument && documents?.find((doc) => doc.title === documentTitle);
 
-  async function handleSave() {
-    // choose shakesText if present, otherwise build corrected text
-    let contentToSave;
+  const handleSave = async () => {
+    try {
+      let contentToSave;
 
-    if (shakesText) {
-      contentToSave = segments
-        .map((segment) =>
-          segment.type === "normal" || segment.status !== "accepted"
-            ? segment.text
-            : segment.correction
-        )
-        .join("");
-    } else if (mode === "llm") {
-      contentToSave = segments
-        .map((segment) =>
-          segment.type === "normal" || segment.status !== "accepted"
-            ? segment.text
-            : segment.correction
-        )
-        .join("");
-    } else {
-      contentToSave = segments.map((segment) => segment.text).join(" ");
+      if (shakesText) {
+        contentToSave = segments
+          .map((segment) =>
+            segment.type === "normal" || segment.status !== "accepted"
+              ? segment.text
+              : segment.correction
+          )
+          .join("");
+      } else if (mode === "llm") {
+        contentToSave = segments
+          .map((segment) =>
+            segment.type === "normal" || segment.status !== "accepted"
+              ? segment.text
+              : segment.correction
+          )
+          .join("");
+      } else {
+        contentToSave = segments.map((segment) => segment.text).join(" ");
+      }
+
+      if (selectedDocument || duplicateDoc) {
+        const doc = selectedDocument || duplicateDoc;
+        console.log("updating document", doc.id);
+        const updatedDoc = {
+          ...doc,
+          content: contentToSave,
+          title: documentTitle,
+        };
+        setSelectedDocument(updatedDoc);
+        setDocuments(
+          documents.map((d) => (d.id === updatedDoc.id ? updatedDoc : d))
+        );
+        await updateDocument(updatedDoc);
+        console.log("Document updated successfully", updatedDoc.id);
+      } else {
+        console.log("creating new document");
+        await createDocument(user.id, contentToSave, documentTitle);
+      }
+
+      console.log('Attempting to update tokens for Save:', {
+        userId: user.id,
+        tokenCost: 5
+      });
+
+      const { data: tokenData, error: statsError } = await supabase.rpc('increment_statistic', {
+        p_user_id: user.id,
+        p_column: 'used_tokens',
+        p_value: 5
+      });
+
+      console.log('Token update response:', { tokenData, error: statsError });
+
+      if (statsError) throw statsError;
+
+      handleTokenChange(-5);
+      updateStatistics('usedTokens', 5);
+    } catch (error) {
+      console.error('Error saving document:', error);
     }
+  };
 
-    if (selectedDocument || duplicateDoc) {
-      const doc = selectedDocument || duplicateDoc;
-      console.log("updating document", doc.id);
-      const updatedDoc = {
-        ...doc,
-        content: contentToSave,
-        title: documentTitle,
-      };
-      setSelectedDocument(updatedDoc);
-      setDocuments(
-        documents.map((d) => (d.id === updatedDoc.id ? updatedDoc : d))
-      );
-      await updateDocument(updatedDoc);
-      console.log("Document updated successfully", updatedDoc.id);
-    } else {
-      console.log("creating new document");
-      await createDocument(user.id, contentToSave, documentTitle);
+  const handleDownload = async () => {
+    try {
+      let contentToDownload;
+
+      if (shakesText) {
+        contentToDownload = segments
+          .map((segment) =>
+            segment.type === "normal" || segment.status !== "accepted"
+              ? segment.text
+              : segment.correction
+          )
+          .join("");
+      } else if (mode === "llm") {
+        contentToDownload = segments
+          .map((segment) =>
+            segment.type === "normal" || segment.status !== "accepted"
+              ? segment.text
+              : segment.correction
+          )
+          .join("");
+      } else {
+        contentToDownload = segments.map((segment) => segment.text).join(" ");
+      }
+
+      const blob = new Blob([contentToDownload], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = documentTitle || "download.txt";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      // Update database statistics with correct function name
+      const { error: statsError } = await supabase.rpc('increment_statistic', {
+        p_user_id: user.id,
+        p_column: 'used_tokens',
+        p_value: 5
+      });
+
+      if (statsError) throw statsError;
+
+      handleTokenChange(-5);
+      updateStatistics('usedTokens', 5);
+    } catch (error) {
+      console.error('Error downloading document:', error);
     }
+  };
 
-    handleTokenChange(-5);
-  }
-
-  function handleDownload() {
-    // choose current content for download
-    let contentToDownload;
-
-    if (shakesText) {
-      contentToDownload = segments
-        .map((segment) =>
-          segment.type === "normal" || segment.status !== "accepted"
-            ? segment.text
-            : segment.correction
-        )
-        .join("");
-    } else if (mode === "llm") {
-      contentToDownload = segments
-        .map((segment) =>
-          segment.type === "normal" || segment.status !== "accepted"
-            ? segment.text
-            : segment.correction
-        )
-        .join("");
-    } else {
-      contentToDownload = segments.map((segment) => segment.text).join(" ");
-    }
-
-    const blob = new Blob([contentToDownload], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = documentTitle || "download.txt";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    handleTokenChange(-5);
-  }
-  // Add file import handler to load .txt files into the editor
   function handleFileUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -336,32 +434,12 @@ function Editor() {
       const name = file.name.replace(/\.txt$/i, "");
       setSelectedDocument(null);
       setInput(text);
-      setDocumentTitle(name); // set title from file name
+      setDocumentTitle(name);
       setSegments([]);
       setSelectedError(0);
     };
     reader.readAsText(file);
   }
-
-  // if (loading) {
-  //   return (
-  //     <div className="editor panel">
-  //       <div className="flex items-center justify-center h-64">
-  //         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-  //       </div>
-  //     </div>
-  //   );
-  // }
-
-  // if (error) {
-  //   return (
-  //     <div className="editor panel">
-  //       <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-  //         {error}
-  //       </div>
-  //     </div>
-  //   );
-  // }
 
   return (
     <div className="editor panel">

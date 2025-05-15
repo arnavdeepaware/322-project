@@ -11,10 +11,9 @@ export function UserProvider({ children }) {
   const [tokens, setTokens] = useState(0);
   const [isPaid, setIsPaid] = useState(false);
   const [statistics, setStatistics] = useState({
-    editedTexts: 42,     // Fake data for testing
-    usedTokens: 156,     // Fake data for testing
-    availableTokens: 344, // Fake data for testing
-    corrections: 78      // Fake data for testing
+    editedTexts: 0,
+    usedTokens: 0,
+    corrections: 0
   });
 
   function handleTokenChange(k) {
@@ -24,34 +23,31 @@ export function UserProvider({ children }) {
 
   const updateStatistics = async (type, value = 1) => {
     try {
-      if (!user?.id || !isPaid) return;
+      if (!user?.id) return;
 
-      const columnName = type === 'editedTexts' ? 'edited_texts' : 
-                        type === 'usedTokens' ? 'used_tokens' :
-                        'corrections';
+      // Update local state immediately for responsive UI
+      setStatistics(prev => ({
+        ...prev,
+        [type]: prev[type] + value
+      }));
 
-      // Update database
-      const { data, error } = await supabase
-        .from('user_statistics')
-        .upsert({
-          user_id: user.id,
-          [columnName]: value,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id',
-          returning: true
-        });
+      // Then update database
+      const { error } = await supabase.rpc('update_user_stats', {
+        p_user_id: user.id,
+        p_used_tokens: type === 'usedTokens' ? value : 0,
+        p_edited_texts: type === 'editedTexts' ? value : 0,
+        p_corrections: type === 'corrections' ? value : 0
+      });
 
       if (error) throw error;
 
-      // Update local state
+    } catch (error) {
+      console.error('Error updating statistics:', error);
+      // Revert local state if update fails
       setStatistics(prev => ({
         ...prev,
-        [type]: (prev[type] || 0) + value
+        [type]: prev[type] - value
       }));
-
-    } catch (error) {
-      console.error('Error updating statistics:', error.message);
     }
   };
 
@@ -178,38 +174,40 @@ export function UserProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    if (user) {
-      fetchTokenBalance(user.id);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    async function fetchStatistics() {
-      if (!user?.id || !isPaid) return;
-
+    const fetchUserData = async () => {
       try {
-        const { data, error } = await supabase
-          .from('user_statistics')
-          .select('*')
-          .eq('user_id', user.id)
+        if (!user?.id) return;
+
+        const { data: userData, error } = await supabase
+          .from('users')
+          .select('tokens, edited_texts, corrections, used_tokens, is_paid')
+          .eq('id', user.id)
           .single();
 
-        if (error && error.code !== 'PGRST116') throw error;
+        if (error) throw error;
 
-        if (data) {
-          setStatistics({
-            editedTexts: data.edited_texts || 0,
-            usedTokens: data.used_tokens || 0,
-            corrections: data.corrections || 0
-          });
-        }
+        setTokens(userData.tokens || 0);
+        setIsPaid(userData.is_paid || false);
+        setStatistics({
+          editedTexts: userData.edited_texts || 0,
+          usedTokens: userData.used_tokens || 0,
+          corrections: userData.corrections || 0
+        });
+
       } catch (error) {
-        console.error('Error fetching statistics:', error.message);
+        console.error('Error fetching user data:', error);
+        setTokens(0);
+        setIsPaid(false);
+        setStatistics({
+          editedTexts: 0,
+          usedTokens: 0,
+          corrections: 0
+        });
       }
-    }
+    };
 
-    fetchStatistics();
-  }, [user, isPaid]);
+    fetchUserData();
+  }, [user]);
 
   const value = {
     user,
