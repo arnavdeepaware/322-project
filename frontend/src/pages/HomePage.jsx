@@ -79,9 +79,6 @@ function HomePage() {
               <button type="submit">Submit</button>
             </form>
           </div>
-          <div className="panel">
-            <h2 className="title">Disputes</h2>
-          </div>
           {user && (
             <div className="panel">
               <h2 className="title">Invites</h2>
@@ -105,9 +102,6 @@ function HomePage() {
               </div>
             </div>
           )}
-          <div className="panel">
-            <h2 className="title">Respond to Disputes</h2>
-          </div>
       </main>
     </div>
   );
