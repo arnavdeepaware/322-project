@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase, getComplaints, resolveComplaint, manageUserTokens } from '../supabaseClient';
+import { useUser } from '../context/UserContext';
 
 function SuperUserDashboard() {
+  const { user } = useUser();
   const [users, setUsers] = useState([]);
   const [blacklistRequests, setBlacklistRequests] = useState([]);
   const [blacklistedWords, setBlacklistedWords] = useState([]);
@@ -14,12 +16,14 @@ function SuperUserDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [resolutions, setResolutions] = useState({});
   const [tokenInputs, setTokenInputs] = useState({});
+  const [rejectionReasons, setRejectionReasons] = useState([]);
 
   useEffect(() => {
     fetchUsers();
     fetchBlacklistRequests();
     fetchBlacklistedWords();
     fetchComplaints();
+    fetchRejectionReasons();
   }, []);
 
   // Clear success message after 3 seconds
@@ -44,7 +48,13 @@ function SuperUserDashboard() {
 
   async function fetchUsers() {
     try {
-      // fetch all users for superuser
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user?.email !== 'arshanand2524@gmail.com' && user?.email !== 'hseam14@gmail.com' && user?.email !== 'aditya.jha2020123@gmail.com') {
+        // setError('Unauthorized access');
+        return;
+      }
+
       const { data, error } = await supabase
         .from('users')
         .select('*');
@@ -99,6 +109,56 @@ function SuperUserDashboard() {
       }
     } catch (error) {
       setError(error.message);
+    }
+  }
+
+  async function fetchRejectionReasons() {
+    try {
+      console.log('Fetching rejection reasons...');
+      
+      // First check if user is authenticated
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        console.error('Auth error:', authError);
+        throw authError;
+      }
+      console.log('Current user:', user);
+
+      // Check if user is superuser
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('is_superuser')
+        .eq('id', user.id)
+        .single();
+
+      if (userError) {
+        console.error('Error checking superuser status:', userError);
+        throw userError;
+      }
+      console.log('User superuser status:', userData);
+
+      // Fetch rejection reasons
+      const { data, error } = await supabase
+        .from('rejection_reasons')
+        .select(`
+          *,
+          users:user_id (email),
+          documents:document_id (title)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching rejection reasons:', error);
+        throw error;
+      }
+
+      console.log('Rejection reasons data:', data);
+      setRejectionReasons(data || []);
+    } catch (error) {
+      console.error('Error in fetchRejectionReasons:', error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -264,6 +324,38 @@ function SuperUserDashboard() {
     }
   }
 
+  const handleRejectionResponse = async (rejectionId, status) => {
+    try {
+      // Update rejection reason status
+      const { error: updateError } = await supabase
+        .from('rejection_reasons')
+        .update({ status })
+        .eq('id', rejectionId);
+
+      if (updateError) throw updateError;
+
+      // Get the rejection reason to find the user
+      const rejection = rejectionReasons.find(r => r.id === rejectionId);
+      if (!rejection) throw new Error('Rejection reason not found');
+
+      // Update user tokens
+      const tokenChange = status === 'approved' ? 5 : -1;
+      const { error: tokenError } = await supabase.rpc('increment_statistic', {
+        p_user_id: rejection.user_id,
+        p_column: 'used_tokens',
+        p_value: tokenChange
+      });
+
+      if (tokenError) throw tokenError;
+
+      // Refresh the list
+      fetchRejectionReasons();
+    } catch (error) {
+      console.error('Error handling rejection response:', error);
+      alert('Failed to process rejection response. Please try again.');
+    }
+  };
+
   const filteredUsers = users.filter(user => 
     user.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -345,6 +437,18 @@ function SuperUserDashboard() {
               Complaints
             </button>
           </li>
+          <li className="mr-2">
+            <button
+              className={`inline-block p-4 text-lg font-medium ${
+                activeTab === 'rejections'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+              onClick={() => setActiveTab('rejections')}
+            >
+              Rejection Reasons
+            </button>
+          </li>
         </ul>
       </div>
 
@@ -352,7 +456,7 @@ function SuperUserDashboard() {
       <div className="mb-6 panel">
         <input
           type="text"
-          placeholder={`Search ${activeTab === 'users' ? 'users' : activeTab === 'blacklist' ? 'blacklisted words' : 'complaints'}...`}
+          placeholder={`Search ${activeTab === 'users' ? 'users' : activeTab === 'blacklist' ? 'blacklisted words' : activeTab === 'complaints' ? 'complaints' : 'rejection reasons'}...`}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -566,8 +670,75 @@ function SuperUserDashboard() {
           </div>
         </div>
       )}
+
+      {/* Rejection Reasons Tab */}
+      {activeTab === 'rejections' && (
+        <div className="bg-white rounded-lg shadow overflow-hidden panel">
+          {console.log('Rendering rejection reasons tab, data:', rejectionReasons)}
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Document</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {rejectionReasons.map((rejection) => (
+                  <tr key={rejection.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {rejection.users?.email}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {rejection.documents?.title || 'No document'}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      {rejection.reason}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        rejection.status === 'approved' 
+                          ? 'bg-green-100 text-green-800'
+                          : rejection.status === 'rejected'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {rejection.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {rejection.status === 'pending' && (
+                        <div className="space-x-2">
+                          <button
+                            onClick={() => handleRejectionResponse(rejection.id, 'approved')}
+                            className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out transform hover:scale-105"
+                          >
+                            Approve (+5 tokens)
+                          </button>
+                          <button
+                            onClick={() => handleRejectionResponse(rejection.id, 'rejected')}
+                            className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out transform hover:scale-105"
+                          >
+                            Reject (-1 token)
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {rejectionReasons.length === 0 && (
+              <p className="text-gray-500 text-center py-4">No rejection reasons found</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-export default SuperUserDashboard;
+export default SuperUserDashboard; 

@@ -129,6 +129,8 @@ function Editor() {
     usedTokens: 0,
     corrections: 0
   });
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -402,6 +404,47 @@ function Editor() {
     );
     setSelectedError((prev) => prev + 1);
   }
+
+  const handleRejectAll = async () => {
+    setShowRejectModal(true);
+  };
+
+  const handleRejectAllConfirm = async () => {
+    try {
+      if (!rejectReason.trim()) {
+        alert("Please provide a reason for rejection");
+        return;
+      }
+
+      // Create rejection reason record
+      const { error: rejectionError } = await supabase
+        .from('rejection_reasons')
+        .insert({
+          user_id: user.id,
+          document_id: selectedDocument?.id,
+          reason: rejectReason
+        });
+
+      if (rejectionError) throw rejectionError;
+
+      // Reject all pending segments
+      setSegments((prev) =>
+        produce(prev, (draft) => {
+          draft.forEach((segment) => {
+            if (segment.type === "error" && segment.status === "pending") {
+              segment.status = "rejected";
+            }
+          });
+        })
+      );
+
+      setShowRejectModal(false);
+      setRejectReason("");
+    } catch (error) {
+      console.error('Error rejecting all changes:', error);
+      alert('Failed to reject changes. Please try again.');
+    }
+  };
 
   const duplicateDoc =
     !selectedDocument && documents?.find((doc) => doc.title === documentTitle);
@@ -677,12 +720,39 @@ function Editor() {
                     >
                       Reject
                     </button>,
+                    <button
+                      key="reject-all"
+                      className="reject-all-btn"
+                      type="button"
+                      onClick={handleRejectAll}
+                    >
+                      Reject All
+                    </button>,
                   ]
                 : null
             }
           />
         )}
       </div>
+
+      {showRejectModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3>Reject All Changes</h3>
+            <p>Please provide a reason for rejecting all changes:</p>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Enter your reason here..."
+              rows={4}
+            />
+            <div className="modal-buttons">
+              <button onClick={handleRejectAllConfirm}>Confirm</button>
+              <button onClick={() => setShowRejectModal(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
