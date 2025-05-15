@@ -124,7 +124,7 @@ function Editor() {
     setShakesText(result);
   }
 
-  const { user, guest, handleTokenChange } = useUser();
+  
 
 
   useEffect(() => {
@@ -253,28 +253,15 @@ function Editor() {
     !selectedDocument && documents?.find((doc) => doc.title === documentTitle);
 
   async function handleSave() {
-    // choose shakesText if present, otherwise build corrected text
-    let contentToSave;
-
-    if (shakesText) {
-      contentToSave = segments
-        .map((segment) =>
-          segment.type === "normal" || segment.status !== "accepted"
-            ? segment.text
-            : segment.correction
-        )
-        .join("");
-    } else if (mode === "llm") {
-      contentToSave = segments
-        .map((segment) =>
-          segment.type === "normal" || segment.status !== "accepted"
-            ? segment.text
-            : segment.correction
-        )
-        .join("");
-    } else {
-      contentToSave = segments.map((segment) => segment.text).join(" ");
-    }
+    // if shakesText exists, save that directly
+    let contentToSave = shakesText ? shakesText :
+      mode === "llm"
+        ? segments.map((segment) =>
+            segment.type === "normal" || segment.status !== "accepted"
+              ? segment.text
+              : segment.correction
+          ).join("")
+        : segments.map((segment) => segment.text).join(" ");
 
     if (selectedDocument || duplicateDoc) {
       const doc = selectedDocument || duplicateDoc;
@@ -299,28 +286,15 @@ function Editor() {
   }
 
   function handleDownload() {
-    // choose current content for download
-    let contentToDownload;
-
-    if (shakesText) {
-      contentToDownload = segments
-        .map((segment) =>
-          segment.type === "normal" || segment.status !== "accepted"
-            ? segment.text
-            : segment.correction
-        )
-        .join("");
-    } else if (mode === "llm") {
-      contentToDownload = segments
-        .map((segment) =>
-          segment.type === "normal" || segment.status !== "accepted"
-            ? segment.text
-            : segment.correction
-        )
-        .join("");
-    } else {
-      contentToDownload = segments.map((segment) => segment.text).join(" ");
-    }
+    // if shakesText exists, download that directly
+    const contentToDownload = shakesText ? shakesText :
+      mode === "llm"
+        ? segments.map((segment) =>
+            segment.type === "normal" || segment.status !== "accepted"
+              ? segment.text
+              : segment.correction
+          ).join("")
+        : segments.map((segment) => segment.text).join(" ");
 
     const blob = new Blob([contentToDownload], { type: "text/plain" });
     const url = URL.createObjectURL(blob);

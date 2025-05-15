@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useUser } from "../context/UserContext";
 import {
   getUsernameById,
@@ -69,10 +69,8 @@ function HomePage() {
   if (loading) return <div>Loading...</div>;
 
   return (
-
-    invitedDocs && (
-      <div className="home-page">
-        <main>
+    <div className="home-page">
+      <main>
           <div>Welcome, {username}</div>
           <div className="panel blacklist-form">
             <h2 className="title">Suggest a Blacklist Word</h2>
@@ -109,13 +107,7 @@ function HomePage() {
           )}
           <div className="panel">
             <h2 className="title">Respond to Disputes</h2>
-
           </div>
-        </div>
-        )}
-        <div className="panel">
-          <h2 className="title">Respond to Disputes</h2>
-        </div>
       </main>
     </div>
   );
