@@ -109,24 +109,34 @@ function Editor() {
   const [selfCorrectedWords, setSelfCorrectedWords] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { user, guest, handleTokenChange } = useUser();
+  const { user, handleTokenChange } = useUser();
 
   useEffect(() => {
-    async function fetchDocs() {
-      const owned = await getDocumentsByUserId(user.id);
-      const shared_ids = await getSharedDocumentIds(user.id);
-      const shared = await Promise.all(
-        shared_ids.map((id) => getDocumentById(id))
-      );
-      setDocuments([...owned, ...shared]);
+    async function getDocuments() {
+      try {
+        setLoading(true);
+        const owned = await getDocumentsByUserId(user.id);
+        const shared_ids = await getSharedDocumentIds(user.id);
+        const shared = await Promise.all(
+          shared_ids.map(async (id) => {
+            const doc = await getDocumentById(parseInt(id, 10));
+            return doc;
+          })
+        );
+
+        setDocuments([...(owned || []), ...(shared || [])].filter(Boolean));
+      } catch (err) {
+        console.error('Error fetching documents:', err);
+        setError('Failed to load documents. Please try again.');
+      } finally {
+        setLoading(false);
+      }
     }
-    // only fetch when real user is present; guests see no documents
-    if (user) {
-      fetchDocs();
-    } else if (guest) {
-      setDocuments([]);
+
+    if (user?.id) {
+      getDocuments();
     }
-  }, [user, guest]);
+  }, [user]);
 
   function toggleMode(e) {
     const newMode = e.target.value;
@@ -155,26 +165,12 @@ function Editor() {
 
   const handleSubmit = async (text) => {
     setShakesText("");
-    const trimmed = text.trim();
-    const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
-    // free guest users can only submit up to 20 words
-    if (guest && wordCount > 20) {
-      alert("Guest users may only submit up to 20 words.");
-      return;
-    }
-    setInput(trimmed);
+    setInput(text.trim());
+    const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
     handleTokenChange(-wordCount);
 
     if (mode === "llm") {
       const errors = await fetchErrors(text);
-      //console.log("Errors: ", errors[0].correction);
-      console.log("Errors: ", errors.length);
-      
-      // bonus of 3 tokens if over 10 words and no errors
-      if (wordCount >= 10 && (errors.length === 0 || (errors[0].correction.trim() == "No errors found."|| errors[0].correction.trim() === text.trim()))) {
-        console.log("Yer a genius Harry!");
-        handleTokenChange(3);
-      }
       setSegments(getCorrectionSegments(text, errors));
       setSelectedError(0);
     } else if (mode === "self") {
@@ -214,8 +210,13 @@ function Editor() {
     let contentToSave;
 
     if (shakesText) {
-      // save the shakesperized output directly
-      contentToSave = shakesText;
+      contentToSave = segments
+        .map((segment) =>
+          segment.type === "normal" || segment.status !== "accepted"
+            ? segment.text
+            : segment.correction
+        )
+        .join("");
     } else if (mode === "llm") {
       contentToSave = segments
         .map((segment) =>
@@ -255,8 +256,13 @@ function Editor() {
     let contentToDownload;
 
     if (shakesText) {
-      // download the shakesperized output directly
-      contentToDownload = shakesText;
+      contentToDownload = segments
+        .map((segment) =>
+          segment.type === "normal" || segment.status !== "accepted"
+            ? segment.text
+            : segment.correction
+        )
+        .join("");
     } else if (mode === "llm") {
       contentToDownload = segments
         .map((segment) =>
