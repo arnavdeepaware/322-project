@@ -28,7 +28,9 @@ function Header() {
       <nav>
         <ul className="left-links">
           <li>
-            <Link to="/"><Logo /></Link>
+            <Link to="/">
+              <Logo />
+            </Link>
           </li>
           <li>
             <Link to="/editor">Editor</Link>
@@ -36,6 +38,7 @@ function Header() {
           <li>
             <Link to="/documents">Documents</Link>
           </li>
+
           {isSuperUser && (
             <li>
               <Link to="/superuser" className="text-purple-600 hover:text-purple-700">
@@ -43,6 +46,11 @@ function Header() {
               </Link>
             </li>
           )}
+
+          <li>
+            <Link to="/complaints">Make a Complaint</Link>
+          </li>
+
         </ul>
         <ul className="right-links">
           <li>

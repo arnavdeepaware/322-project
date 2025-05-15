@@ -15,6 +15,26 @@ export function UserProvider({ children }) {
     incrementTokens(k);
   }
 
+  function signInAsGuest() {
+    const now = Date.now();
+    const last = parseInt(localStorage.getItem("lastGuestLogin"));
+    // enforce 3-minute cooldown
+    // if (last && now - last < 3 * 60 * 1000) {
+    //   alert("Please wait a few minutes before signing in as guest again.");
+    //   return;
+    // }
+    localStorage.setItem("lastGuestLogin", now.toString());
+    setGuest(true);
+    setUser(null);
+    setLoading(false);
+    setTokens(0);
+  }
+
+  function signOutGuest() {
+    setGuest(false);
+    localStorage.removeItem("lastGuestLogin");
+  }
+
   const fetchTokenBalance = async (userId) => {
     const { data, error } = await supabase
       .from("users")

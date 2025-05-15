@@ -3,6 +3,7 @@ import { useUser } from "../../../context/UserContext";
 import { produce } from "immer";
 import TextBlock from "../../../components/TextBlock";
 import {
+  censorText,
   fetchErrors,
   fetchShakesperize,
   getCorrectionSegments,
@@ -14,6 +15,7 @@ import {
   updateDocument,
   getSharedDocumentIds,
   getDocumentById,
+  getBlacklistWords,
 } from "../../../supabaseClient";
 import "../Editor.css";
 
@@ -110,6 +112,17 @@ function Editor() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { user, handleTokenChange } = useUser();
+  const [blacklistWords, setBlacklistWords] = useState(null);
+  const { user, guest, handleTokenChange } = useUser();
+
+  async function handleShakesperize(text) {
+    setInput(text);
+    // deduct 3 tokens
+    handleTokenChange(-3);
+    // use the passed text to ensure latest value
+    const result = await fetchShakesperize(text);
+    setShakesText(result);
+  }
 
   useEffect(() => {
     async function getDocuments() {
@@ -136,7 +149,11 @@ function Editor() {
     if (user?.id) {
       getDocuments();
     }
-  }, [user]);
+    
+    getBlacklistWords().then((data) =>
+      setBlacklistWords(data.map((entry) => entry.word))
+    );
+  }, [user, guest]);
 
   function toggleMode(e) {
     const newMode = e.target.value;
@@ -165,17 +182,40 @@ function Editor() {
 
   const handleSubmit = async (text) => {
     setShakesText("");
-    setInput(text.trim());
-    const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+
+    const censored = censorText(text, blacklistWords);
+    handleTokenChange(-(censored.split("*").length - 1));
+
+    const trimmed = censored.trim();
+    const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
+    // free guest users can only submit up to 20 words
+    if (guest && wordCount > 20) {
+      alert("Guest users may only submit up to 20 words.");
+      return;
+    }
+    setInput(trimmed);
     handleTokenChange(-wordCount);
 
     if (mode === "llm") {
       const errors = await fetchErrors(text);
-      setSegments(getCorrectionSegments(text, errors));
+      
+      //console.log("Errors: ", errors[0].correction);
+      console.log("Errors: ", errors.length);
+
+      // bonus of 3 tokens if over 10 words and no errors
+      if (
+        wordCount >= 10 &&
+        (errors.length === 0 ||
+          errors[0].correction.trim() == "No errors found." ||
+          errors[0].correction.trim() === text.trim())
+      ) {
+        console.log("Yer a genius Harry!");
+        handleTokenChange(3);
+      }
+      setSegments(getCorrectionSegments(trimmed, errors));
       setSelectedError(0);
     } else if (mode === "self") {
-      setSegments(getSelfCorrectionSegments(text));
-      console.log(getSelfCorrectionSegments(text));
+      setSegments(getSelfCorrectionSegments(trimmed));
     }
   };
 
