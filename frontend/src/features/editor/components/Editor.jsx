@@ -109,34 +109,24 @@ function Editor() {
   const [selfCorrectedWords, setSelfCorrectedWords] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { user, handleTokenChange } = useUser();
+  const { user, guest, handleTokenChange } = useUser();
 
   useEffect(() => {
-    async function getDocuments() {
-      try {
-        setLoading(true);
-        const owned = await getDocumentsByUserId(user.id);
-        const shared_ids = await getSharedDocumentIds(user.id);
-        const shared = await Promise.all(
-          shared_ids.map(async (id) => {
-            const doc = await getDocumentById(parseInt(id, 10));
-            return doc;
-          })
-        );
-
-        setDocuments([...(owned || []), ...(shared || [])].filter(Boolean));
-      } catch (err) {
-        console.error('Error fetching documents:', err);
-        setError('Failed to load documents. Please try again.');
-      } finally {
-        setLoading(false);
-      }
+    async function fetchDocs() {
+      const owned = await getDocumentsByUserId(user.id);
+      const shared_ids = await getSharedDocumentIds(user.id);
+      const shared = await Promise.all(
+        shared_ids.map((id) => getDocumentById(id))
+      );
+      setDocuments([...owned, ...shared]);
     }
-
-    if (user?.id) {
-      getDocuments();
+    // only fetch when real user is present; guests see no documents
+    if (user) {
+      fetchDocs();
+    } else if (guest) {
+      setDocuments([]);
     }
-  }, [user]);
+  }, [user, guest]);
 
   function toggleMode(e) {
     const newMode = e.target.value;
@@ -165,8 +155,14 @@ function Editor() {
 
   const handleSubmit = async (text) => {
     setShakesText("");
-    setInput(text.trim());
-    const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+    const trimmed = text.trim();
+    const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
+    // free guest users can only submit up to 20 words
+    if (guest && wordCount > 20) {
+      alert("Guest users may only submit up to 20 words.");
+      return;
+    }
+    setInput(trimmed);
     handleTokenChange(-wordCount);
 
     if (mode === "llm") {
