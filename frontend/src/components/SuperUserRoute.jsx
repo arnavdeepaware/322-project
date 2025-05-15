@@ -10,7 +10,7 @@ function SuperUserRoute({ children }) {
     async function checkSuperUser() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        setIsSuperUser(user?.email === 'arshanand2524@gmail.com');
+        setIsSuperUser(user?.email === 'hseam14@gmail.com');
       } catch (error) {
         console.error('Error checking superuser status:', error);
         setIsSuperUser(false);
