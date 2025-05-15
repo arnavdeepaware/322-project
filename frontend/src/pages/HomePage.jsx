@@ -6,7 +6,8 @@ import {
   getInvitesByUserId,
   getDocumentById,
   acceptInvite,
-  rejectInvite
+  rejectInvite,
+  deductTokensOnUser,
 } from "../supabaseClient";
 
 function HomePage() {
@@ -32,13 +33,23 @@ function HomePage() {
   }, []);
 
   function handleAcceptInvite(docId) {
-    acceptInvite(user.id, docId)
-    setInvitedDocs((docs) => docs.filter((doc) => doc.id !== docId))
+    acceptInvite(user.id, docId);
+    setInvitedDocs((docs) => docs.filter((doc) => doc.id !== docId));
   }
 
-  function handleRejectInvite(docId) {
-    rejectInvite(user.id, docId)
-    setInvitedDocs((docs) => docs.filter((doc) => doc.id !== docId))
+  async function handleRejectInvite(docId) {
+    await rejectInvite(user.id, docId); // wait for invite rejection
+    setInvitedDocs((docs) => docs.filter((doc) => doc.id !== docId));
+
+    const rejectedDoc = invitedDocs.find((doc) => doc.id === docId);
+    console.log("rejected doc is", rejectedDoc);
+    if (rejectedDoc) {
+      console.log("waiting for deduction of tokens");
+      await deductTokensOnUser(rejectedDoc.owner_id, 3); // wait for token deduction
+    } else {
+      console.error("Rejected document not found for docId:", docId);
+    }
+    console.log("deduction complete!");
   }
 
   function handleBlacklistRequest(e) {
@@ -53,20 +64,20 @@ function HomePage() {
   }
 
   return (
-    invitedDocs && (
-      <div className="home-page">
-        <main>
-          <div>Welcome, {username}</div>
-          <div className="panel blacklist-form">
-            <h2 className="title">Suggest a Blacklist Word</h2>
-            <form onSubmit={handleBlacklistRequest}>
-              <input type="text" name="word" />
-              <button type="submit">Submit</button>
-            </form>
-          </div>
-          <div className="panel">
-            <h2 className="title">Disputes</h2>
-          </div>
+    <div className="home-page">
+      <main>
+        <div>Welcome, {username}</div>
+        <div className="panel blacklist-form">
+          <h2 className="title">Suggest a Blacklist Word</h2>
+          <form onSubmit={handleBlacklistRequest}>
+            <input type="text" name="word" />
+            <button type="submit">Submit</button>
+          </form>
+        </div>
+        <div className="panel">
+          <h2 className="title">Disputes</h2>
+        </div>
+        {user && (
           <div className="panel">
             <h2 className="title">Invites</h2>
             <div>
@@ -75,18 +86,25 @@ function HomePage() {
                   <b>{doc.title}</b>
                   <span>-</span>
                   <span className="username">{doc.owner}</span>
-                  <button onClick={(e) => handleAcceptInvite(doc.id)}>Accept</button>
-                  <button onClick={(e) => handleRejectInvite(doc.id)} className="reject-btn">Reject</button>
+                  <button onClick={() => handleAcceptInvite(doc.id)}>
+                    Accept
+                  </button>
+                  <button
+                    onClick={() => handleRejectInvite(doc.id)}
+                    className="reject-btn"
+                  >
+                    Reject
+                  </button>
                 </div>
               ))}
             </div>
           </div>
-          <div className="panel">
-            <h2 className="title">Respond to Disputes</h2>
-          </div>
-        </main>
-      </div>
-    )
+        )}
+        <div className="panel">
+          <h2 className="title">Respond to Disputes</h2>
+        </div>
+      </main>
+    </div>
   );
 }
 
