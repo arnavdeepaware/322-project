@@ -3,6 +3,7 @@ import { useUser } from "../../../context/UserContext";
 import { produce } from "immer";
 import TextBlock from "../../../components/TextBlock";
 import {
+  censorText,
   fetchErrors,
   fetchShakesperize,
   getCorrectionSegments,
@@ -14,6 +15,7 @@ import {
   updateDocument,
   getSharedDocumentIds,
   getDocumentById,
+  getBlacklistWords,
 } from "../../../supabaseClient";
 import "../Editor.css";
 
@@ -107,6 +109,7 @@ function Editor() {
   const [segments, setSegments] = useState([]);
   const [selectedError, setSelectedError] = useState(0);
   const [selfCorrectedWords, setSelfCorrectedWords] = useState({});
+  const [blacklistWords, setBlacklistWords] = useState(null);
   const { user, guest, handleTokenChange } = useUser();
 
   async function handleShakesperize(text) {
@@ -133,6 +136,10 @@ function Editor() {
     } else if (guest) {
       setDocuments([]);
     }
+
+    getBlacklistWords().then((data) =>
+      setBlacklistWords(data.map((entry) => entry.word))
+    );
   }, [user, guest]);
 
   function toggleMode(e) {
@@ -162,7 +169,11 @@ function Editor() {
 
   const handleSubmit = async (text) => {
     setShakesText("");
-    const trimmed = text.trim();
+
+    const censored = censorText(text, blacklistWords);
+    handleTokenChange(-(censored.split("*").length - 1));
+
+    const trimmed = censored.trim();
     const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
     // free guest users can only submit up to 20 words
     if (guest && wordCount > 20) {
@@ -176,17 +187,21 @@ function Editor() {
       const errors = await fetchErrors(text);
       //console.log("Errors: ", errors[0].correction);
       console.log("Errors: ", errors.length);
-      
+
       // bonus of 3 tokens if over 10 words and no errors
-      if (wordCount >= 10 && (errors.length === 0 || (errors[0].correction.trim() == "No errors found."|| errors[0].correction.trim() === text.trim()))) {
+      if (
+        wordCount >= 10 &&
+        (errors.length === 0 ||
+          errors[0].correction.trim() == "No errors found." ||
+          errors[0].correction.trim() === text.trim())
+      ) {
         console.log("Yer a genius Harry!");
         handleTokenChange(3);
       }
-      setSegments(getCorrectionSegments(text, errors));
+      setSegments(getCorrectionSegments(trimmed, errors));
       setSelectedError(0);
     } else if (mode === "self") {
-      setSegments(getSelfCorrectionSegments(text));
-      console.log(getSelfCorrectionSegments(text));
+      setSegments(getSelfCorrectionSegments(trimmed));
     }
   };
 

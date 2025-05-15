@@ -311,3 +311,14 @@ export async function makeComplaint(complainantId, respondentId, text) {
 
   return data;
 }
+
+export async function getBlacklistWords() {
+  const { data, error } = await supabase.from("blacklist").select("word");
+
+  if (error) {
+    console.error("Error getting blacklist words:", error);
+    return null;
+  }
+
+  return data;
+}
