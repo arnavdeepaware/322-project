@@ -9,6 +9,7 @@ import TokensPage from "./pages/TokensPage";
 import DocumentsPage from "./pages/DocumentsPage";
 import DocumentPage from "./pages/DocumentPage";
 import LoginPage from "./pages/LoginPage";
+import ComplaintsPage from "./pages/ComplaintsPage";
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
           <Route path="/documents/:id" element={<DocumentPage />} />
           <Route path="/account" element={<AccountPage />} />
           <Route path="/tokens" element={<TokensPage />} />
+          <Route path="/complaints" element={<ComplaintsPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

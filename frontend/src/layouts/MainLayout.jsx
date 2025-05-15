@@ -12,13 +12,18 @@ function Header() {
       <nav>
         <ul className="left-links">
           <li>
-            <Link to="/"><Logo /></Link>
+            <Link to="/">
+              <Logo />
+            </Link>
           </li>
           <li>
             <Link to="/editor">Editor</Link>
           </li>
           <li>
             <Link to="/documents">Documents</Link>
+          </li>
+          <li>
+            <Link to="/complaints">Make a Complaint</Link>
           </li>
         </ul>
         <ul className="right-links">
