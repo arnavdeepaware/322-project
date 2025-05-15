@@ -279,3 +279,39 @@ export async function submitBlacklistRequest(word) {
 
   return data;
 }
+
+export async function getComplaints() {
+  const { data, error } = await supabase
+    .from('complaints')
+    .select(`
+      *,
+      complainant:complainant_id(username),
+      respondent:respondent_id(username)
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching complaints:', error);
+    return null;
+  }
+
+  return data;
+}
+
+export async function resolveComplaint(complaintId, resolution) {
+  const { data, error } = await supabase
+    .from('complaints')
+    .update({ 
+      status: 'resolved',
+      respondent_note: resolution
+    })
+    .eq('id', complaintId)
+    .select();
+
+  if (error) {
+    console.error('Error resolving complaint:', error);
+    return null;
+  }
+
+  return data;
+}
