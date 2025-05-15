@@ -6,16 +6,18 @@ import { useUser } from "../context/UserContext";
 import { supabase } from "../supabaseClient";
 
 function Header() {
-  const { tokens } = useUser();
+  const { user, tokens } = useUser();
   const [isSuperUser, setIsSuperUser] = useState(false);
 
   useEffect(() => {
     async function checkSuperUser() {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        setIsSuperUser(user?.email === 'arshanand2524@gmail.com');
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        setIsSuperUser(user?.email === "arshanand2524@gmail.com");
       } catch (error) {
-        console.error('Error checking superuser status:', error);
+        console.error("Error checking superuser status:", error);
         setIsSuperUser(false);
       }
     }
@@ -41,7 +43,10 @@ function Header() {
 
           {isSuperUser && (
             <li>
-              <Link to="/superuser" className="text-purple-600 hover:text-purple-700">
+              <Link
+                to="/superuser"
+                className="text-purple-600 hover:text-purple-700"
+              >
                 Super User Dashboard
               </Link>
             </li>
@@ -50,7 +55,12 @@ function Header() {
           <li>
             <Link to="/complaints">Make a Complaint</Link>
           </li>
-
+          {(user?.email === "hseam14@gmail.com" ||
+            user?.email === "arshanand2524@gmail.com") && (
+            <li>
+              <Link to="/superuser">Super User Dashboard</Link>
+            </li>
+          )}
         </ul>
         <ul className="right-links">
           <li>

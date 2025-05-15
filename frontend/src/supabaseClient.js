@@ -15,7 +15,7 @@ export async function signInWithGoogle() {
 }
 
 export async function getAllUsers() {
-  const { data, error } = await supabase.from("users").select("id, username");
+  const { data, error } = await supabase.from("users").select();
 
   if (error) {
     console.error("Error getting users:", error);
