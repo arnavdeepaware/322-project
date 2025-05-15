@@ -22,6 +22,8 @@ function ComplaintsPage() {
     setSelectedUser("");
   }
 
+  if (!user) return <div>Please sign in to make complaints.</div>;
+
   return (
     users && (
       <div className="complaints-page">
