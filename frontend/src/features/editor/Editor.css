@@ -100,3 +100,85 @@
 .mySuggestionHighlight:hover {
   background-color: rgba(255, 230, 0, 0.85);
 }
+
+/* Update existing styles */
+.editor-top {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.editor-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.5rem 0;
+}
+
+/* New stats styles */
+.editor-stats-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 0;
+  margin-top: 0.5rem;
+}
+
+.editor-stats {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(to right, rgba(18, 85, 151, 0.1), rgba(18, 85, 151, 0.2));
+  border-radius: 12px;
+  padding: 1rem 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 2rem;
+  min-width: 120px;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: rgb(18, 85, 151);
+  margin-bottom: 0.25rem;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stat-divider {
+  width: 1px;
+  height: 40px;
+  background-color: rgba(18, 85, 151, 0.2);
+}
+
+/* Button group styles */
+.button-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.editor-controls select,
+.editor-controls input {
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+.editor-controls button {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+}

@@ -2,6 +2,7 @@ import { useState, useEffect, useContext } from "react";
 import { useUser } from "../../../context/UserContext";
 import { produce } from "immer";
 import TextBlock from "../../../components/TextBlock";
+import EditorStats from './EditorStats';
 import {
   censorText,
   fetchErrors,
@@ -365,64 +366,74 @@ function Editor() {
   return (
     <div className="editor panel">
       <div className="editor-header">
-        <label>Select Document: </label>
-        <select
-          className="document-select"
-          value={selectedDocument ? selectedDocument.id : ""}
-          onChange={handleSelectDocument}
-        >
-          <option key="new-doc" value="">
-            New Document
-          </option>
-          {documents.map((document) => (
-            <option key={document.id} value={document.id}>
-              {document.title || "Untitled Document"}
-            </option>
-          ))}
-        </select>
+        <div className="editor-top">
+          <div className="editor-controls">
+            <div className="control-group">
+              <label>Select Document: </label>
+              <select
+                className="document-select"
+                value={selectedDocument ? selectedDocument.id : ""}
+                onChange={handleSelectDocument}
+              >
+                <option key="new-doc" value="">New Document</option>
+                {documents.map((document) => (
+                  <option key={document.id} value={document.id}>
+                    {document.title || "Untitled Document"}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        <input
-          type="text"
-          placeholder="Document Name"
-          value={documentTitle}
-          onChange={(e) => setDocumentTitle(e.target.value)}
-          className="document-name-input"
-          style={{ marginLeft: "1rem" }}
-        />
+            <div className="control-group">
+              <input
+                type="text"
+                placeholder="Document Name"
+                value={documentTitle}
+                onChange={(e) => setDocumentTitle(e.target.value)}
+                className="document-name-input"
+              />
+            </div>
 
-        {/* New Save & Download Buttons */}
-        <button
-          type="button"
-          className="save-btn"
-          onClick={handleSave}
-          style={{ marginLeft: "1rem" }}
-          disabled={!(segments.length > 0 || shakesText)}
-        >
-          Save Document
-        </button>
-        <button
-          type="button"
-          className="download-btn"
-          onClick={handleDownload}
-          style={{ marginLeft: "0.5rem" }}
-          disabled={!(segments.length > 0 || shakesText)}
-        >
-          Download Document
-        </button>
+            <div className="button-group">
+              <button
+                type="button"
+                className="save-btn"
+                onClick={handleSave}
+                disabled={!(segments.length > 0 || shakesText)}
+              >
+                Save Document
+              </button>
+              <button
+                type="button"
+                className="download-btn"
+                onClick={handleDownload}
+                disabled={!(segments.length > 0 || shakesText)}
+              >
+                Download Document
+              </button>
+            </div>
+          </div>
 
-        <div className="editor-header2">
-          <label>Upload Document: </label>
-          <input
-            type="file"
-            accept=".txt"
-            onChange={handleFileUpload}
-            style={{ marginLeft: "1rem" }}
-          />
-          <label>Mode: </label>
-          <select value={mode} onChange={toggleMode}>
-            <option value="llm">LLM Correction</option>
-            <option value="self">Self-correction</option>
-          </select>
+          <div className="editor-controls">
+            <div className="control-group">
+              <label>Upload Document: </label>
+              <input
+                type="file"
+                accept=".txt"
+                onChange={handleFileUpload}
+              />
+            </div>
+
+            <div className="control-group">
+              <label>Mode: </label>
+              <select value={mode} onChange={toggleMode}>
+                <option value="llm">LLM Correction</option>
+                <option value="self">Self-correction</option>
+              </select>
+            </div>
+          </div>
+
+          <EditorStats />
         </div>
       </div>
 
