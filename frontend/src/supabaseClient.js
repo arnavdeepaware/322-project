@@ -90,18 +90,23 @@ export async function getSharedDocumentIds(userId) {
 }
 
 export async function getDocumentById(id) {
-  const { data, error } = await supabase
-    .from("documents")
-    .select()
-    .eq("id", id)
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
 
-  if (error) {
-    console.error("Error fetching document", id, error);
+    if (error) {
+      console.error('Error fetching document:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error fetching document:', error);
     return null;
   }
-
-  return data;
 }
 
 export async function incrementTokens(amount) {
