@@ -104,7 +104,13 @@ function HighlightedText({ segments, selectedError }) {
 }
 
 function Editor() {
-  const { user, guest, handleTokenChange, signOutGuest, updateStatistics } = useUser();
+  const { 
+    user, 
+    guest, 
+    handleTokenChange, 
+    signOutGuest, 
+    updateStatistics 
+  } = useUser();
   const navigate = useNavigate();
   const [mode, setMode] = useState("llm");
   const [documents, setDocuments] = useState([]);
@@ -329,16 +335,8 @@ function Editor() {
       }
 
       if (!guest) {
-        const { error } = await supabase.rpc('update_user_stats', {
-          p_user_id: user.id,
-          p_used_tokens: totalCost,
-          p_edited_texts: 1,
-          p_corrections: 0
-        });
-
-        if (error) throw error;
-        updateStatistics('usedTokens', totalCost);
-        updateStatistics('editedTexts', 1);
+        await updateStatistics('usedTokens', totalCost);
+        await updateStatistics('editedTexts', 1);
       }
 
       handleTokenChange(-totalCost);

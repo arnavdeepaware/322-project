@@ -16,14 +16,20 @@ function Header() {
         setIsSuperUser(false);
         return;
       }
-      const { data, error } = await supabase
-        .from("superusers")
-        .select("user_id")
-        .eq("user_id", user.id)
-        .single();
-      if (error) console.error("Superuser lookup error:", error.message);
-      setIsSuperUser(!!data);
-      console.log("Superuser status:", !!data);
+      try {
+        const { data, error } = await supabase
+          .from("superusers")
+          .select("user_id")
+          .eq("user_id", user.id);
+        
+        if (error) throw error;
+        
+        // Check if there are any matching records
+        setIsSuperUser(data && data.length > 0);
+      } catch (error) {
+        console.error("Superuser lookup error:", error.message);
+        setIsSuperUser(false);
+      }
     }
     checkSuperUser();
   }, [user, userLoading]);

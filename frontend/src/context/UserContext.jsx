@@ -29,33 +29,23 @@ export function UserProvider({ children }) {
     incrementTokens(k);
   }
 
-  const updateStatistics = async (type, value = 1) => {
+  const updateStatistics = async (field, value) => {
     try {
-      if (!user?.id) return;
-
-      // Update local state immediately for responsive UI
-      setStatistics(prev => ({
-        ...prev,
-        [type]: prev[type] + value
-      }));
-
-      // Then update database
-      const { error } = await supabase.rpc('update_user_stats', {
+      const { error } = await supabase.rpc('increment_statistic', {
         p_user_id: user.id,
-        p_used_tokens: type === 'usedTokens' ? value : 0,
-        p_edited_texts: type === 'editedTexts' ? value : 0,
-        p_corrections: type === 'corrections' ? value : 0
+        p_column: field,
+        p_value: value
       });
 
       if (error) throw error;
 
-    } catch (error) {
-      console.error('Error updating statistics:', error);
-      // Revert local state if update fails
+      // Update local state
       setStatistics(prev => ({
         ...prev,
-        [type]: prev[type] - value
+        [field]: (prev[field] || 0) + value
       }));
+    } catch (error) {
+      console.error(`Error updating ${field}:`, error);
     }
   };
 
@@ -228,30 +218,20 @@ export function UserProvider({ children }) {
     username,
     loading,
     tokens,
-    handleTokenChange,
-    statistics,
-    updateStatistics,
+    guest,
     isPaid,
+    statistics,
+    handleTokenChange,
+    signInAsGuest,
+    signOutGuest,
+    updateStatistics
   };
 
-return (
-  <UserContext.Provider
-    value={{
-      user,
-      username,
-      loading,
-      tokens,
-      guest,
-      isPaid,
-      statistics,
-      handleTokenChange,
-      signInAsGuest,
-      signOutGuest
-    }}
-  >
-    {children}
-  </UserContext.Provider>
-);
+  return (
+    <UserContext.Provider value={value}>
+      {children}
+    </UserContext.Provider>
+  );
 }
 
 export const useUser = () => useContext(UserContext);
