@@ -62,13 +62,20 @@ function SuperUserDashboard() {
 
   async function fetchBlacklistRequests() {
     try {
+      console.log('Fetching blacklist requests...');
       const { data, error } = await supabase
         .from('blacklist_requests')
         .select('*');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching blacklist requests:', error);
+        throw error;
+      }
+      
+      console.log('Blacklist requests data:', data);
       setBlacklistRequests(data || []);
     } catch (error) {
+      console.error('Error in fetchBlacklistRequests:', error);
       setError(error.message);
     }
   }
