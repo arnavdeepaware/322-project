@@ -14,6 +14,17 @@ export async function signInWithGoogle() {
   return data;
 }
 
+export async function getAllUsers() {
+  const { data, error } = await supabase.from("users").select("id, username");
+
+  if (error) {
+    console.error("Error getting users:", error);
+    return null;
+  }
+
+  return data;
+}
+
 export async function getUsernameById(userId) {
   const { data, error } = await supabase
     .from("users")
@@ -274,6 +285,32 @@ export async function submitBlacklistRequest(word) {
 
   if (error) {
     console.error("Error submitting request:", error.message);
+    return null;
+  }
+
+  return data;
+}
+
+export async function makeComplaint(complainantId, respondentId, text) {
+  console.log({
+    complainant_id: complainantId,
+    respondent_id: respondentId,
+    complainant_note: text,
+  });
+
+  const { data, error } = await supabase
+    .from("complaints")
+    .insert([
+      {
+        complainant_id: complainantId,
+        respondent_id: respondentId,
+        complainant_note: text,
+      },
+    ])
+    .select();
+
+  if (error) {
+    console.error("Error making complaint:", error);
     return null;
   }
 

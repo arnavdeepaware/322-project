@@ -132,3 +132,22 @@
   align-self: flex-start;
   background-color: rgb(200, 0, 00);
 }
+
+.complaints-page .select-user {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.complaints-page .select-user select {
+  flex: 1;
+}
+
+.complaints-page .panel .text-block-input {
+  width: auto;
+}
+
+.complaints-page main .button-container {
+  display: flex;
+  justify-content: flex-end;
+}
