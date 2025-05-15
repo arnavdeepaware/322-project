@@ -1,11 +1,27 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Outlet, Link } from "react-router";
 import Logo from "../components/Logo";
 import accountCircle from "../assets/account_circle.svg";
 import { useUser } from "../context/UserContext";
+import { supabase } from "../supabaseClient";
 
 function Header() {
   const { tokens } = useUser();
+  const [isSuperUser, setIsSuperUser] = useState(false);
+
+  useEffect(() => {
+    async function checkSuperUser() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        setIsSuperUser(user?.email === 'arshanand2524@gmail.com');
+      } catch (error) {
+        console.error('Error checking superuser status:', error);
+        setIsSuperUser(false);
+      }
+    }
+
+    checkSuperUser();
+  }, []);
 
   return (
     <header>
@@ -22,9 +38,19 @@ function Header() {
           <li>
             <Link to="/documents">Documents</Link>
           </li>
+
+          {isSuperUser && (
+            <li>
+              <Link to="/superuser" className="text-purple-600 hover:text-purple-700">
+                Super User Dashboard
+              </Link>
+            </li>
+          )}
+
           <li>
             <Link to="/complaints">Make a Complaint</Link>
           </li>
+
         </ul>
         <ul className="right-links">
           <li>
