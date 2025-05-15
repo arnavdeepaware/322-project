@@ -138,45 +138,6 @@ function HomePage() {
             </div>
           </div>
         )}
-        {complaints && (
-          <div className="panel">
-            <h2 className="title">Respond to Complaints</h2>
-            <select
-              onChange={(e) => {
-                const selectedId = e.target.value;
-                if (selectedId === "") {
-                  setSelectedComplaint(null);
-                } else {
-                  const selected = complaints.find(
-                    (c) => String(c.id) === selectedId
-                  );
-                  setSelectedComplaint(selected || null);
-                }
-              }}
-            >
-              <option value="">Select a complaint</option>
-              {complaints.map((complaint) => (
-                <option key={complaint.id} value={complaint.id}>
-                  {complaint.id} - {complaint.complainant.username}
-                </option>
-              ))}
-            </select>
-            {selectedComplaint && (
-              <>
-                <div className="text-block-input">
-                  {selectedComplaint.complainant_note}
-                </div>
-                <textarea
-                  className="text-block-input"
-                  value={respondentNote}
-                  onChange={(e) => setRespondentNote(e.target.value)}
-                  placeholder="Write your response..."
-                />
-                <button onClick={handleRespondToComplaint}>Respond</button>
-              </>
-            )}
-          </div>
-        )}
       </main>
     </div>
   );
