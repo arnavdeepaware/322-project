@@ -168,6 +168,14 @@ function Editor() {
 
     if (mode === "llm") {
       const errors = await fetchErrors(text);
+      //console.log("Errors: ", errors[0].correction);
+      console.log("Errors: ", errors.length);
+      
+      // bonus of 3 tokens if over 10 words and no errors
+      if (wordCount >= 10 && (errors.length === 0 || (errors[0].correction.trim() == "No errors found."|| errors[0].correction.trim() === text.trim()))) {
+        console.log("Yer a genius Harry!");
+        handleTokenChange(3);
+      }
       setSegments(getCorrectionSegments(text, errors));
       setSelectedError(0);
     } else if (mode === "self") {
