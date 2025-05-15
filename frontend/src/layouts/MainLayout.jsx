@@ -4,20 +4,19 @@ import Logo from "../components/Logo";
 import accountCircle from "../assets/account_circle.svg";
 import { useUser } from "../context/UserContext";
 import { supabase } from "../supabaseClient";
+import StatsPanel from "../components/StatsPanel";
 
 function Header() {
-  const { user, tokens } = useUser();
+  const { user, tokens, isPaid } = useUser();
   const [isSuperUser, setIsSuperUser] = useState(false);
 
   useEffect(() => {
     async function checkSuperUser() {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        setIsSuperUser(user?.email === "arshanand2524@gmail.com");
+        const { data: { user } } = await supabase.auth.getUser();
+        setIsSuperUser(user?.email === 'arshanand2524@gmail.com');
       } catch (error) {
-        console.error("Error checking superuser status:", error);
+        console.error('Error checking superuser status:', error);
         setIsSuperUser(false);
       }
     }
@@ -41,24 +40,31 @@ function Header() {
             <Link to="/documents">Documents</Link>
           </li>
 
-          <li>
-            <Link to="/complaints">Make a Complaint</Link>
-          </li>
           {isSuperUser && (
             <li>
-              <Link
-                to="/superuser"
-                className="text-purple-600 hover:text-purple-700"
-              >
+              <Link to="/superuser" className="text-purple-600 hover:text-purple-700">
                 Super User Dashboard
               </Link>
             </li>
           )}
+
+          <li>
+            <Link to="/complaints">Make a Complaint</Link>
+          </li>
         </ul>
         <ul className="right-links">
-          <li>
-            <Link to="/tokens">🪙 {tokens}</Link>
-          </li>
+          {isPaid && (
+            <li className="stats-summary">
+              <Link to="/tokens">
+                🪙 {tokens} tokens available
+              </Link>
+            </li>
+          )}
+          {!isPaid && (
+            <li>
+              <Link to="/tokens">🪙 {tokens}</Link>
+            </li>
+          )}
           <li>
             <Link to="/account">
               <img
@@ -76,11 +82,15 @@ function Header() {
 }
 
 function MainLayout() {
+  const { isPaid } = useUser();
+  
   return (
-    <>
+    <div className="app-container">
       <Header />
-      <Outlet />
-    </>
+      <main className={isPaid ? 'paid-user' : 'free-user'}>
+        <Outlet />
+      </main>
+    </div>
   );
 }
 

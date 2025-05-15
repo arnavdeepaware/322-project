@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { useUser } from "../../../context/UserContext";
 import { produce } from "immer";
-import { useNavigate } from "react-router";
 import TextBlock from "../../../components/TextBlock";
+import EditorStats from './EditorStats';
+import { supabase } from "../../../supabaseClient"; // Add this import
+import { useNavigate } from "react-router-dom";
 import {
   censorText,
   fetchErrors,
@@ -13,6 +15,7 @@ import {
 import {
   getDocumentsByUserId,
   createDocument,
+  
   updateDocument,
   getSharedDocumentIds,
   getDocumentById,
@@ -101,6 +104,8 @@ function HighlightedText({ segments, selectedError }) {
 }
 
 function Editor() {
+  const { user, guest, handleTokenChange, signOutGuest, updateStatistics } = useUser();
+  const navigate = useNavigate();
   const [mode, setMode] = useState("llm");
   const [documents, setDocuments] = useState([]);
   const [selectedDocument, setSelectedDocument] = useState(null);
@@ -112,55 +117,173 @@ function Editor() {
   const [selfCorrectedWords, setSelfCorrectedWords] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
   const [blacklistWords, setBlacklistWords] = useState(null);
-  const { user, guest, handleTokenChange, signOutGuest } = useUser();
-  const navigate = useNavigate();
-
-  async function handleShakesperize(text) {
-    setInput(text);
-    // deduct 3 tokens
-    handleTokenChange(-3);
-    // use the passed text to ensure latest value
-    const result = await fetchShakesperize(text);
-    setShakesText(result);
-  }
-
-  
-
+  const [realtimeStats, setRealtimeStats] = useState({
+    editedTexts: 0,
+    usedTokens: 0,
+    corrections: 0
+  });
 
   useEffect(() => {
-    async function fetchDocs() {
+    const checkAuth = async () => {
+      const { data: { user: authUser }, error } = await supabase.auth.getUser();
+      console.log('Current auth state:', {
+        user: authUser,
+        error,
+        contextUser: user
+      });
+    };
+    
+    checkAuth();
+  }, [user]);
+
+  useEffect(() => {
+    // Initial fetch
+    fetchUserStats();
+
+    // Set up real-time subscription
+    const channel = supabase
+      .channel('users_stats')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'users',
+          filter: `id=eq.${user?.id}`
+        },
+        () => {
+          fetchUserStats();
+        }
+      )
+      .subscribe();
+
+    // Refresh stats every 30 seconds as backup
+    const interval = setInterval(fetchUserStats, 30000);
+
+    return () => {
+      channel.unsubscribe();
+      clearInterval(interval);
+    };
+  }, [user?.id]);
+
+  const handleShakesperize = async (text) => {
+    try {
+      setInput(text);
+      const TOKEN_COST = 3;
+
+      if (guest) {
+        handleTokenChange(-TOKEN_COST);
+        const result = await fetchShakesperize(text);
+        setShakesText(result);
+        return;
+      }
+
+      const { error } = await supabase.rpc('update_user_stats', {
+        p_user_id: user.id,
+        p_used_tokens: TOKEN_COST,
+        p_edited_texts: 1,
+        p_corrections: 0
+      });
+
+      if (error) throw error;
+      
+      handleTokenChange(-TOKEN_COST);
+      await fetchUserStats(); // Fetch latest stats after update
+      
+      const result = await fetchShakesperize(text);
+      setShakesText(result);
+    } catch (error) {
+      console.error('Error updating statistics:', error);
+    }
+  };
+
+  useEffect(() => {
+    async function getDocuments() {
       try {
+        setLoading(true);
         const owned = await getDocumentsByUserId(user.id);
         const shared_ids = await getSharedDocumentIds(user.id);
         const shared = await Promise.all(
-          shared_ids.map((id) => getDocumentById(id))
+          shared_ids.map(async (id) => {
+            const doc = await getDocumentById(parseInt(id, 10));
+            return doc;
+          })
         );
-        setDocuments([...owned, ...shared]);
-      } catch (e) {
-        console.error("Error fetching documents:", e);
-        setError("Failed to load documents");
+
+        setDocuments([...(owned || []), ...(shared || [])].filter(Boolean));
+      } catch (err) {
+        console.error('Error fetching documents:', err);
+        setError('Failed to load documents. Please try again.');
       } finally {
         setLoading(false);
       }
     }
-    if (user) {
-      fetchDocs();
-    } else if (guest) {
-      setDocuments([]);
-      setLoading(false);
-    } else {
-      // no session
-      setDocuments([]);
-      setLoading(false);
-    }
 
+    if (user?.id) {
+      getDocuments();
+    }
     
     getBlacklistWords().then((data) =>
       setBlacklistWords(data.map((entry) => entry.word))
     );
   }, [user, guest]);
+
+  const fetchUserStats = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('edited_texts, used_tokens, corrections')
+        .eq('id', user.id)
+        .single();
+        
+      if (error) throw error;
+      
+      setRealtimeStats({
+        editedTexts: data.edited_texts || 0,
+        usedTokens: data.used_tokens || 0,
+        corrections: data.corrections || 0
+      });
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // Set up real-time subscription for stats updates
+    const channel = supabase
+      .channel(`stats-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'users',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          if (payload.new) {
+            setRealtimeStats({
+              editedTexts: payload.new.edited_texts || 0,
+              usedTokens: payload.new.used_tokens || 0,
+              corrections: payload.new.corrections || 0
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    // Initial fetch
+    fetchUserStats();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [user?.id]);
 
   function toggleMode(e) {
     const newMode = e.target.value;
@@ -188,62 +311,88 @@ function Editor() {
   }
 
   const handleSubmit = async (text) => {
-    setShakesText("");
+    try {
+      setShakesText("");
+      const censored = censorText(text, blacklistWords);
+      const trimmed = censored.trim();
+      const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
+      const censorCost = censored.split("*").length - 1;
+      const totalCost = censorCost + wordCount;
 
-
-    const censored = censorText(text, blacklistWords);
-    handleTokenChange(-(censored.split("*").length - 1));
-
-    const trimmed = censored.trim();
-
-    const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
-    // free guest users can only submit up to 20 words
-    if (guest && wordCount > 20) {
-      // block guest for 3 minutes
-      const blockUntil = Date.now() + 3 * 60 * 1000;
-      localStorage.setItem("guestBlockedUntil", blockUntil.toString());
-      alert("Guest users may only submit up to 20 words. You are locked out for 3 minutes.");
-      signOutGuest();
-      navigate("/login");
-      return;
-    }
-    setInput(trimmed);
-    handleTokenChange(-wordCount);
-
-    if (mode === "llm") {
-      const errors = await fetchErrors(text);
-      
-      //console.log("Errors: ", errors[0].correction);
-      console.log("Errors: ", errors.length);
-
-      // bonus of 3 tokens if over 10 words and no errors
-      if (
-        wordCount >= 10 &&
-        (errors.length === 0 ||
-          errors[0].correction.trim() == "No errors found." ||
-          errors[0].correction.trim() === text.trim())
-      ) {
-        console.log("Yer a genius Harry!");
-        handleTokenChange(3);
+      if (guest && wordCount > 20) {
+        const blockUntil = Date.now() + 3 * 60 * 1000;
+        localStorage.setItem("guestBlockedUntil", blockUntil.toString());
+        alert("Guest users may only submit up to 20 words. You are locked out for 3 minutes.");
+        signOutGuest();
+        navigate("/login");
+        return;
       }
-      setSegments(getCorrectionSegments(trimmed, errors));
-      setSelectedError(0);
-    } else if (mode === "self") {
-      setSegments(getSelfCorrectionSegments(trimmed));
+
+      if (!guest) {
+        const { error } = await supabase.rpc('update_user_stats', {
+          p_user_id: user.id,
+          p_used_tokens: totalCost,
+          p_edited_texts: 1,
+          p_corrections: 0
+        });
+
+        if (error) throw error;
+        updateStatistics('usedTokens', totalCost);
+        updateStatistics('editedTexts', 1);
+      }
+
+      handleTokenChange(-totalCost);
+      setInput(trimmed);
+
+      // Process based on mode
+      if (mode === "llm") {
+        const errors = await fetchErrors(text);
+        if (wordCount >= 10 && 
+            (errors.length === 0 || 
+             errors[0].correction.trim() === "No errors found." || 
+             errors[0].correction.trim() === text.trim())) {
+          handleTokenChange(3);
+        }
+        setSegments(getCorrectionSegments(trimmed, errors));
+        setSelectedError(0);
+      } else if (mode === "self") {
+        setSegments(getSelfCorrectionSegments(trimmed));
+      }
+    } catch (error) {
+      console.error('Error processing text:', error);
     }
   };
 
-  function handleAccept() {
-    if (2 * selectedError + 1 >= segments.length) return;
+  const handleAccept = async () => {
+    try {
+      if (2 * selectedError + 1 >= segments.length) return;
+      const TOKEN_COST = 1;
 
-    setSegments((prev) =>
-      produce(prev, (draft) => {
-        draft[2 * selectedError + 1].status = "accepted";
-      })
-    );
-    setSelectedError((prev) => prev + 1);
-    handleTokenChange(-1);
-  }
+      // Update database
+      const { error } = await supabase.rpc('update_user_stats', {
+        p_user_id: user.id,
+        p_used_tokens: TOKEN_COST,
+        p_corrections: 1,
+        p_edited_texts: 0
+      });
+
+      if (error) throw error;
+
+      // Update UI state
+      setSegments((prev) =>
+        produce(prev, (draft) => {
+          draft[2 * selectedError + 1].status = "accepted";
+        })
+      );
+      setSelectedError((prev) => prev + 1);
+      handleTokenChange(-TOKEN_COST);
+      
+      // Fetch latest stats
+      fetchUserStats();
+    } catch (error) {
+      console.error('Error updating statistics:', error);
+    }
+  };
 
   function handleReject() {
     if (2 * selectedError + 1 >= segments.length) return;
@@ -259,62 +408,121 @@ function Editor() {
   const duplicateDoc =
     !selectedDocument && documents?.find((doc) => doc.title === documentTitle);
 
-  async function handleSave() {
-    // if shakesText exists, save that directly
-    let contentToSave = shakesText ? shakesText :
-      mode === "llm"
-        ? segments.map((segment) =>
+  const handleSave = async () => {
+    try {
+      let contentToSave;
+
+      if (shakesText) {
+        contentToSave = segments
+          .map((segment) =>
             segment.type === "normal" || segment.status !== "accepted"
               ? segment.text
               : segment.correction
-          ).join("")
-        : segments.map((segment) => segment.text).join(" ");
+          )
+          .join("");
+      } else if (mode === "llm") {
+        contentToSave = segments
+          .map((segment) =>
+            segment.type === "normal" || segment.status !== "accepted"
+              ? segment.text
+              : segment.correction
+          )
+          .join("");
+      } else {
+        contentToSave = segments.map((segment) => segment.text).join(" ");
+      }
 
-    if (selectedDocument || duplicateDoc) {
-      const doc = selectedDocument || duplicateDoc;
-      console.log("updating document", doc.id);
-      const updatedDoc = {
-        ...doc,
-        content: contentToSave,
-        title: documentTitle,
-      };
-      setSelectedDocument(updatedDoc);
-      setDocuments(
-        documents.map((d) => (d.id === updatedDoc.id ? updatedDoc : d))
-      );
-      await updateDocument(updatedDoc);
-      console.log("Document updated successfully", updatedDoc.id);
-    } else {
-      console.log("creating new document");
-      await createDocument(user.id, contentToSave, documentTitle);
+      if (selectedDocument || duplicateDoc) {
+        const doc = selectedDocument || duplicateDoc;
+        console.log("updating document", doc.id);
+        const updatedDoc = {
+          ...doc,
+          content: contentToSave,
+          title: documentTitle,
+        };
+        setSelectedDocument(updatedDoc);
+        setDocuments(
+          documents.map((d) => (d.id === updatedDoc.id ? updatedDoc : d))
+        );
+        await updateDocument(updatedDoc);
+        console.log("Document updated successfully", updatedDoc.id);
+      } else {
+        console.log("creating new document");
+        await createDocument(user.id, contentToSave, documentTitle);
+      }
+
+      console.log('Attempting to update tokens for Save:', {
+        userId: user.id,
+        tokenCost: 5
+      });
+
+      const { data: tokenData, error: statsError } = await supabase.rpc('increment_statistic', {
+        p_user_id: user.id,
+        p_column: 'used_tokens',
+        p_value: 5
+      });
+
+      console.log('Token update response:', { tokenData, error: statsError });
+
+      if (statsError) throw statsError;
+
+      handleTokenChange(-5);
+      updateStatistics('usedTokens', 5);
+    } catch (error) {
+      console.error('Error saving document:', error);
     }
+  };
 
-    handleTokenChange(-5);
-  }
+  const handleDownload = async () => {
+    try {
+      let contentToDownload;
 
-  function handleDownload() {
-    // if shakesText exists, download that directly
-    const contentToDownload = shakesText ? shakesText :
-      mode === "llm"
-        ? segments.map((segment) =>
+      if (shakesText) {
+        contentToDownload = segments
+          .map((segment) =>
             segment.type === "normal" || segment.status !== "accepted"
               ? segment.text
               : segment.correction
-          ).join("")
-        : segments.map((segment) => segment.text).join(" ");
+          )
+          .join("");
+      } else if (mode === "llm") {
+        contentToDownload = segments
+          .map((segment) =>
+            segment.type === "normal" || segment.status !== "accepted"
+              ? segment.text
+              : segment.correction
+          )
+          .join("");
+      } else {
+        contentToDownload = segments.map((segment) => segment.text).join(" ");
+      }
 
-    const blob = new Blob([contentToDownload], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = documentTitle || "download.txt";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    handleTokenChange(-5);
-  }
-  // Add file import handler to load .txt files into the editor
+      const blob = new Blob([contentToDownload], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = documentTitle || "download.txt";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      // Update database statistics with correct function name
+      const { error: statsError } = await supabase.rpc('increment_statistic', {
+        p_user_id: user.id,
+        p_column: 'used_tokens',
+        p_value: 5
+      });
+
+      if (statsError) throw statsError;
+
+      handleTokenChange(-5);
+      updateStatistics('usedTokens', 5);
+    } catch (error) {
+      console.error('Error downloading document:', error);
+    }
+  };
+
   function handleFileUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -324,94 +532,84 @@ function Editor() {
       const name = file.name.replace(/\.txt$/i, "");
       setSelectedDocument(null);
       setInput(text);
-      setDocumentTitle(name); // set title from file name
+      setDocumentTitle(name);
       setSegments([]);
       setSelectedError(0);
     };
     reader.readAsText(file);
   }
 
-  // if (loading) {
-  //   return (
-  //     <div className="editor panel">
-  //       <div className="flex items-center justify-center h-64">
-  //         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-  //       </div>
-  //     </div>
-  //   );
-  // }
-
-  // if (error) {
-  //   return (
-  //     <div className="editor panel">
-  //       <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-  //         {error}
-  //       </div>
-  //     </div>
-  //   );
-  // }
-
   return (
     <div className="editor panel">
       <div className="editor-header">
-        <label>Select Document: </label>
-        <select
-          className="document-select"
-          value={selectedDocument ? selectedDocument.id : ""}
-          onChange={handleSelectDocument}
-        >
-          <option key="new-doc" value="">
-            New Document
-          </option>
-          {documents.map((document) => (
-            <option key={document.id} value={document.id}>
-              {document.title || "Untitled Document"}
-            </option>
-          ))}
-        </select>
+        <div className="editor-top">
+          <div className="editor-controls">
+            <div className="control-group">
+              <label>Select Document: </label>
+              <select
+                className="document-select"
+                value={selectedDocument ? selectedDocument.id : ""}
+                onChange={handleSelectDocument}
+              >
+                <option key="new-doc" value="">New Document</option>
+                {documents.map((document) => (
+                  <option key={document.id} value={document.id}>
+                    {document.title || "Untitled Document"}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        <input
-          type="text"
-          placeholder="Document Name"
-          value={documentTitle}
-          onChange={(e) => setDocumentTitle(e.target.value)}
-          className="document-name-input"
-          style={{ marginLeft: "1rem" }}
-        />
+            <div className="control-group">
+              <input
+                type="text"
+                placeholder="Document Name"
+                value={documentTitle}
+                onChange={(e) => setDocumentTitle(e.target.value)}
+                className="document-name-input"
+              />
+            </div>
 
-        {/* New Save & Download Buttons */}
-        <button
-          type="button"
-          className="save-btn"
-          onClick={handleSave}
-          style={{ marginLeft: "1rem" }}
-          disabled={!(segments.length > 0 || shakesText)}
-        >
-          Save Document
-        </button>
-        <button
-          type="button"
-          className="download-btn"
-          onClick={handleDownload}
-          style={{ marginLeft: "0.5rem" }}
-          disabled={!(segments.length > 0 || shakesText)}
-        >
-          Download Document
-        </button>
+            <div className="button-group">
+              <button
+                type="button"
+                className="save-btn"
+                onClick={handleSave}
+                disabled={!(segments.length > 0 || shakesText)}
+              >
+                Save Document
+              </button>
+              <button
+                type="button"
+                className="download-btn"
+                onClick={handleDownload}
+                disabled={!(segments.length > 0 || shakesText)}
+              >
+                Download Document
+              </button>
+            </div>
+          </div>
 
-        <div className="editor-header2">
-          <label>Upload Document: </label>
-          <input
-            type="file"
-            accept=".txt"
-            onChange={handleFileUpload}
-            style={{ marginLeft: "1rem" }}
-          />
-          <label>Mode: </label>
-          <select value={mode} onChange={toggleMode}>
-            <option value="llm">LLM Correction</option>
-            <option value="self">Self-correction</option>
-          </select>
+          <div className="editor-controls">
+            <div className="control-group">
+              <label>Upload Document: </label>
+              <input
+                type="file"
+                accept=".txt"
+                onChange={handleFileUpload}
+              />
+            </div>
+
+            <div className="control-group">
+              <label>Mode: </label>
+              <select value={mode} onChange={toggleMode}>
+                <option value="llm">LLM Correction</option>
+                <option value="self">Self-correction</option>
+              </select>
+            </div>
+          </div>
+
+          <EditorStats statistics={realtimeStats} />
         </div>
       </div>
 
