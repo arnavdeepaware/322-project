@@ -412,13 +412,11 @@ export async function respondToComplaint(complaintId, text) {
   return true;
 }
 
-
-export async function resolveComplaint(complaintId, resolution) {
+export async function resolveComplaint(complaintId) {
   const { data, error } = await supabase
     .from("complaints")
     .update({
-      status: "resolved",
-      respondent_note: resolution,
+      status: "resolved"
     })
     .eq("id", complaintId)
     .select();

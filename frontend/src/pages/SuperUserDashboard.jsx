@@ -242,18 +242,11 @@ function SuperUserDashboard() {
   }
 
   async function handleResolveComplaint(complaintId) {
-    const resolution = resolutions[complaintId] || "";
-    if (!resolution.trim()) {
-      setError('Please provide a response before submitting');
-      return;
-    }
-
     try {
       setLoading(true);
-      const result = await resolveComplaint(complaintId, resolution);
+      const result = await resolveComplaint(complaintId);
       if (result) {
         setSuccessMessage('Complaint resolved successfully');
-        setResolutions(r => ({ ...r, [complaintId]: '' }));
         fetchComplaints();
       }
     } catch (error) {
@@ -558,7 +551,7 @@ function SuperUserDashboard() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {complaint.status !== 'resolved' && (
+                      {complaint.status !== 'resolved' && complaint.respondent_note && (
                         <div className="space-y-2">
                           <button
                             onClick={() => handleResolveComplaint(complaint.id)}
