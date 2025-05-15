@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase, getComplaints, resolveComplaint } from '../supabaseClient';
+import { supabase, getComplaints, resolveComplaint, manageUserTokens } from '../supabaseClient';
 
 function SuperUserDashboard() {
   const [users, setUsers] = useState([]);
@@ -13,6 +13,7 @@ function SuperUserDashboard() {
   const [successMessage, setSuccessMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [resolutions, setResolutions] = useState({});
+  const [tokenInputs, setTokenInputs] = useState({});
 
   useEffect(() => {
     fetchUsers();
@@ -262,6 +263,20 @@ function SuperUserDashboard() {
     }
   }
 
+  async function handleManageTokens(userId, amount) {
+    try {
+      setLoading(true);
+      await manageUserTokens(userId, amount);
+      setSuccessMessage(`Successfully ${amount > 0 ? 'added' : 'deducted'} ${Math.abs(amount)} tokens`);
+      setTokenInputs(prev => ({ ...prev, [userId]: '' })); // Clear input after successful operation
+      fetchUsers(); // Refresh the users list to show updated token balance
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const filteredUsers = users.filter(user => 
     user.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -379,12 +394,36 @@ function SuperUserDashboard() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <button
-                        onClick={() => handleDeleteUser(user.id)}
-                        className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out transform hover:scale-105"
-                      >
-                        Delete
-                      </button>
+                      <div className="flex space-x-2 items-center">
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="number"
+                            value={tokenInputs[user.id] || ''}
+                            onChange={(e) => setTokenInputs(prev => ({ ...prev, [user.id]: e.target.value }))}
+                            placeholder="Amount"
+                            className="w-20 px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            min="1"
+                          />
+                          <button
+                            onClick={() => handleManageTokens(user.id, parseInt(tokenInputs[user.id] || '0'))}
+                            className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out transform hover:scale-105"
+                          >
+                            Add
+                          </button>
+                          <button
+                            onClick={() => handleManageTokens(user.id, -parseInt(tokenInputs[user.id] || '0'))}
+                            className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out transform hover:scale-105"
+                          >
+                            Deduct
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteUser(user.id)}
+                          className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out transform hover:scale-105"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

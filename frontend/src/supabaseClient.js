@@ -374,3 +374,15 @@ export async function resolveComplaint(complaintId, resolution) {
 
   return data;
 }
+
+export async function manageUserTokens(userId, amount) {
+  const { error } = await supabase.rpc("manage_user_tokens", {
+    user_id: userId,
+    amount: amount,
+  });
+
+  if (error) {
+    console.error("Failed to manage tokens:", error.message);
+    throw error;
+  }
+}
