@@ -9,7 +9,9 @@ export function UserProvider({ children }) {
   const [username, setUsername] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tokens, setTokens] = useState(0);
-  const [guest, setGuest] = useState(false);
+  const [guest, setGuest] = useState(
+    localStorage.getItem("isGuest") === "true"
+  );
 
   function handleTokenChange(k) {
     setTokens((prev) => prev + k);
@@ -17,16 +19,15 @@ export function UserProvider({ children }) {
   }
 
   function signInAsGuest() {
-    const now = Date.now();
-    const last = parseInt(localStorage.getItem("lastGuestLogin"));
-    // enforce 3-minute cooldown
-
-    if (last && now - last < 3 * 60 * 1000) {
-      alert("Please wait a few minutes before signing in as guest again.");
+    // check if guest is blocked
+    const blockedUntil = parseInt(localStorage.getItem("guestBlockedUntil") || '0');
+    if (blockedUntil && Date.now() < blockedUntil) {
+      alert("You are locked out for 3 minutes.");
       return;
     }
-
-    localStorage.setItem("lastGuestLogin", now.toString());
+    // clear block on new guest login
+    localStorage.removeItem("guestBlockedUntil");
+    localStorage.setItem("isGuest", "true");
     setGuest(true);
     setUser(null);
     setLoading(false);
@@ -35,7 +36,7 @@ export function UserProvider({ children }) {
 
   function signOutGuest() {
     setGuest(false);
-    localStorage.removeItem("lastGuestLogin");
+    localStorage.removeItem("isGuest");
   }
 
   const fetchTokenBalance = async (userId) => {
