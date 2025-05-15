@@ -99,41 +99,44 @@ function HighlightedText({ segments, selectedError }) {
 
 function Editor() {
   const [mode, setMode] = useState("llm");
-  const [documents, setDocuments] = useState(null);
+  const [documents, setDocuments] = useState([]);
   const [selectedDocument, setSelectedDocument] = useState(null);
-  const [documentTitle, setDocumentTitle] = useState("New Document"); // add title state
+  const [documentTitle, setDocumentTitle] = useState("New Document");
   const [input, setInput] = useState("");
   const [shakesText, setShakesText] = useState("");
   const [segments, setSegments] = useState([]);
   const [selectedError, setSelectedError] = useState(0);
   const [selfCorrectedWords, setSelfCorrectedWords] = useState({});
-  const { user, guest, handleTokenChange } = useUser();
-
-  async function handleShakesperize(text) {
-    setInput(text);
-    // deduct 3 tokens
-    handleTokenChange(-3);
-    // use the passed text to ensure latest value
-    const result = await fetchShakesperize(text);
-    setShakesText(result);
-  }
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const { user, handleTokenChange } = useUser();
 
   useEffect(() => {
-    async function fetchDocs() {
-      const owned = await getDocumentsByUserId(user.id);
-      const shared_ids = await getSharedDocumentIds(user.id);
-      const shared = await Promise.all(
-        shared_ids.map((id) => getDocumentById(id))
-      );
-      setDocuments([...owned, ...shared]);
+    async function getDocuments() {
+      try {
+        setLoading(true);
+        const owned = await getDocumentsByUserId(user.id);
+        const shared_ids = await getSharedDocumentIds(user.id);
+        const shared = await Promise.all(
+          shared_ids.map(async (id) => {
+            const doc = await getDocumentById(parseInt(id, 10));
+            return doc;
+          })
+        );
+
+        setDocuments([...(owned || []), ...(shared || [])].filter(Boolean));
+      } catch (err) {
+        console.error('Error fetching documents:', err);
+        setError('Failed to load documents. Please try again.');
+      } finally {
+        setLoading(false);
+      }
     }
-    // only fetch when real user is present; guests see no documents
-    if (user) {
-      fetchDocs();
-    } else if (guest) {
-      setDocuments([]);
+
+    if (user?.id) {
+      getDocuments();
     }
-  }, [user, guest]);
+  }, [user]);
 
   function toggleMode(e) {
     const newMode = e.target.value;
@@ -146,42 +149,28 @@ function Editor() {
   function handleSelectDocument(e) {
     const docId = e.target.value;
     if (docId === "") {
-      console.log("setting document to null");
       setSelectedDocument(null);
       setInput("");
-      setDocumentTitle(""); // reset title
+      setDocumentTitle("New Document");
       return;
     }
 
     const doc = documents.find((doc) => doc.id === parseInt(docId, 10));
-    console.log(doc);
-    setSelectedDocument(doc);
-    setInput(doc.content);
-    setDocumentTitle(doc.title || ""); // load existing title
+    if (doc) {
+      setSelectedDocument(doc);
+      setInput(doc.content || "");
+      setDocumentTitle(doc.title || "Untitled Document");
+    }
   }
 
   const handleSubmit = async (text) => {
     setShakesText("");
-    const trimmed = text.trim();
-    const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
-    // free guest users can only submit up to 20 words
-    if (guest && wordCount > 20) {
-      alert("Guest users may only submit up to 20 words.");
-      return;
-    }
-    setInput(trimmed);
+    setInput(text.trim());
+    const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
     handleTokenChange(-wordCount);
 
     if (mode === "llm") {
       const errors = await fetchErrors(text);
-      //console.log("Errors: ", errors[0].correction);
-      console.log("Errors: ", errors.length);
-      
-      // bonus of 3 tokens if over 10 words and no errors
-      if (wordCount >= 10 && (errors.length === 0 || (errors[0].correction.trim() == "No errors found."|| errors[0].correction.trim() === text.trim()))) {
-        console.log("Yer a genius Harry!");
-        handleTokenChange(3);
-      }
       setSegments(getCorrectionSegments(text, errors));
       setSelectedError(0);
     } else if (mode === "self") {
@@ -221,8 +210,13 @@ function Editor() {
     let contentToSave;
 
     if (shakesText) {
-      // save the shakesperized output directly
-      contentToSave = shakesText;
+      contentToSave = segments
+        .map((segment) =>
+          segment.type === "normal" || segment.status !== "accepted"
+            ? segment.text
+            : segment.correction
+        )
+        .join("");
     } else if (mode === "llm") {
       contentToSave = segments
         .map((segment) =>
@@ -262,8 +256,13 @@ function Editor() {
     let contentToDownload;
 
     if (shakesText) {
-      // download the shakesperized output directly
-      contentToDownload = shakesText;
+      contentToDownload = segments
+        .map((segment) =>
+          segment.type === "normal" || segment.status !== "accepted"
+            ? segment.text
+            : segment.correction
+        )
+        .join("");
     } else if (mode === "llm") {
       contentToDownload = segments
         .map((segment) =>
@@ -304,145 +303,163 @@ function Editor() {
     reader.readAsText(file);
   }
 
-  return (
-    documents && (
+  if (loading) {
+    return (
       <div className="editor panel">
-        <div className="editor-header">
-          <label>Select Document: </label>
-          <select
-            className="document-select"
-            value={selectedDocument ? selectedDocument.id : ""}
-            onChange={handleSelectDocument}
-          >
-            <option key="new-doc" value="">
-              New Document
-            </option>
-            {documents.map((document) => (
-              <option key={document.id} value={document.id}>
-                {document.title}
-              </option>
-            ))}
-          </select>
-
-          <input
-            type="text"
-            placeholder="Document Name"
-            value={documentTitle}
-            onChange={(e) => setDocumentTitle(e.target.value)}
-            className="document-name-input"
-            style={{ marginLeft: "1rem" }}
-          />
-
-          {/* New Save & Download Buttons */}
-          <button
-            type="button"
-            className="save-btn"
-            onClick={handleSave}
-            style={{ marginLeft: "1rem" }}
-            disabled={!(segments.length > 0 || shakesText)}
-          >
-            Save Document
-          </button>
-          <button
-            type="button"
-            className="download-btn"
-            onClick={handleDownload}
-            style={{ marginLeft: "0.5rem" }}
-            disabled={!(segments.length > 0 || shakesText)}
-          >
-            Download Document
-          </button>
-
-          <div className="editor-header2">
-            <label>Upload Document: </label>
-            <input
-              type="file"
-              accept=".txt"
-              onChange={handleFileUpload}
-              style={{ marginLeft: "1rem" }}
-            />
-            <label>Mode: </label>
-            <select value={mode} onChange={toggleMode}>
-              <option value="llm">LLM Correction</option>
-              <option value="self">Self-correction</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="editor-text-blocks">
-          <TextBlock
-            title="Input Text"
-            text={input}
-            isEditable={true}
-            onSubmit={handleSubmit}
-            onChange={setInput}
-            submitLabel="Correct"
-            buttons={[
-              <button
-                key="shake"
-                type="button"
-                className="shake-btn"
-                onClick={() => handleShakesperize(input)}
-              >
-                Shakesperize
-              </button>,
-            ]}
-          />
-
-          <hr />
-
-          {shakesText ? (
-            <TextBlock
-              title="Shakesperized Text"
-              text={shakesText}
-              isEditable={false}
-            />
-          ) : (
-            <TextBlock
-              title="Corrected Text"
-              text={
-                mode === "llm" ? (
-                  <HighlightedText
-                    segments={segments}
-                    selectedError={selectedError}
-                  />
-                ) : (
-                  <SelfCorrectedText
-                    segments={segments}
-                    setSegments={setSegments}
-                    setSelfCorrectedWords={setSelfCorrectedWords}
-                    selfCorrectedWords={selfCorrectedWords}
-                  />
-                )
-              }
-              isEditable={false}
-              buttons={
-                mode === "llm"
-                  ? [
-                      <button
-                        key="accept"
-                        className="accept-btn"
-                        type="button"
-                        onClick={handleAccept}
-                      >
-                        Accept
-                      </button>,
-                      <button
-                        key="reject"
-                        className="reject-btn"
-                        type="button"
-                        onClick={handleReject}
-                      >
-                        Reject
-                      </button>,
-                    ]
-                  : null
-              }
-            />
-          )}
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
         </div>
       </div>
-    )
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="editor panel">
+        <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="editor panel">
+      <div className="editor-header">
+        <label>Select Document: </label>
+        <select
+          className="document-select"
+          value={selectedDocument ? selectedDocument.id : ""}
+          onChange={handleSelectDocument}
+        >
+          <option key="new-doc" value="">
+            New Document
+          </option>
+          {documents.map((document) => (
+            <option key={document.id} value={document.id}>
+              {document.title || "Untitled Document"}
+            </option>
+          ))}
+        </select>
+
+        <input
+          type="text"
+          placeholder="Document Name"
+          value={documentTitle}
+          onChange={(e) => setDocumentTitle(e.target.value)}
+          className="document-name-input"
+          style={{ marginLeft: "1rem" }}
+        />
+
+        {/* New Save & Download Buttons */}
+        <button
+          type="button"
+          className="save-btn"
+          onClick={handleSave}
+          style={{ marginLeft: "1rem" }}
+          disabled={!(segments.length > 0 || shakesText)}
+        >
+          Save Document
+        </button>
+        <button
+          type="button"
+          className="download-btn"
+          onClick={handleDownload}
+          style={{ marginLeft: "0.5rem" }}
+          disabled={!(segments.length > 0 || shakesText)}
+        >
+          Download Document
+        </button>
+
+        <div className="editor-header2">
+          <label>Upload Document: </label>
+          <input
+            type="file"
+            accept=".txt"
+            onChange={handleFileUpload}
+            style={{ marginLeft: "1rem" }}
+          />
+          <label>Mode: </label>
+          <select value={mode} onChange={toggleMode}>
+            <option value="llm">LLM Correction</option>
+            <option value="self">Self-correction</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="editor-text-blocks">
+        <TextBlock
+          title="Input Text"
+          text={input}
+          isEditable={true}
+          onSubmit={handleSubmit}
+          onChange={setInput}
+          submitLabel="Correct"
+          buttons={[
+            <button
+              key="shake"
+              type="button"
+              className="shake-btn"
+              onClick={() => handleShakesperize(input)}
+            >
+              Shakesperize
+            </button>,
+          ]}
+        />
+
+        <hr />
+
+        {shakesText ? (
+          <TextBlock
+            title="Shakesperized Text"
+            text={shakesText}
+            isEditable={false}
+          />
+        ) : (
+          <TextBlock
+            title="Corrected Text"
+            text={
+              mode === "llm" ? (
+                <HighlightedText
+                  segments={segments}
+                  selectedError={selectedError}
+                />
+              ) : (
+                <SelfCorrectedText
+                  segments={segments}
+                  setSegments={setSegments}
+                  setSelfCorrectedWords={setSelfCorrectedWords}
+                  selfCorrectedWords={selfCorrectedWords}
+                />
+              )
+            }
+            isEditable={false}
+            buttons={
+              mode === "llm"
+                ? [
+                    <button
+                      key="accept"
+                      className="accept-btn"
+                      type="button"
+                      onClick={handleAccept}
+                    >
+                      Accept
+                    </button>,
+                    <button
+                      key="reject"
+                      className="reject-btn"
+                      type="button"
+                      onClick={handleReject}
+                    >
+                      Reject
+                    </button>,
+                  ]
+                : null
+            }
+          />
+        )}
+      </div>
+    </div>
   );
 }
 

@@ -40,7 +40,6 @@ def check_for_errors(text):
         — You MUST NOT add, remove, or change any punctuation characters (.,!?;:—) unless they’re part of a genuine error you’re correcting.  
         — You MUST NOT insert any new exclamation marks, periods, etc. unless they’re part of a genuine error you’re correcting.
         — You MUST NOT change the capitalization of any words unless they’re part of a genuine error you’re correcting.  
-        — If there are no errors, ouutput an empty string.
 
         EXAMPLES:
         Input: "I am here!"

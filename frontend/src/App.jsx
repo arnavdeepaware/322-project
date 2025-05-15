@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router";
 import ProtectedRoute from "./components/ProtectedRoute";
+import SuperUserRoute from "./components/SuperUserRoute";
 import "./App.css";
 import MainLayout from "./layouts/MainLayout";
 import EditorPage from "./pages/EditorPage";
@@ -9,6 +10,7 @@ import TokensPage from "./pages/TokensPage";
 import DocumentsPage from "./pages/DocumentsPage";
 import DocumentPage from "./pages/DocumentPage";
 import LoginPage from "./pages/LoginPage";
+import SuperUserDashboard from "./pages/SuperUserDashboard";
 
 function App() {
   return (
@@ -29,6 +31,14 @@ function App() {
           <Route path="/documents/:id" element={<DocumentPage />} />
           <Route path="/account" element={<AccountPage />} />
           <Route path="/tokens" element={<TokensPage />} />
+          <Route
+            path="/superuser"
+            element={
+              <SuperUserRoute>
+                <SuperUserDashboard />
+              </SuperUserRoute>
+            }
+          />
         </Route>
       </Routes>
     </BrowserRouter>
