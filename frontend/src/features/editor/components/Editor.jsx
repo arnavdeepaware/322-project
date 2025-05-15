@@ -111,7 +111,6 @@ function Editor() {
   const [selfCorrectedWords, setSelfCorrectedWords] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { user, handleTokenChange } = useUser();
   const [blacklistWords, setBlacklistWords] = useState(null);
   const { user, guest, handleTokenChange } = useUser();
 
@@ -343,25 +342,25 @@ function Editor() {
     reader.readAsText(file);
   }
 
-  if (loading) {
-    return (
-      <div className="editor panel">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-        </div>
-      </div>
-    );
-  }
+  // if (loading) {
+  //   return (
+  //     <div className="editor panel">
+  //       <div className="flex items-center justify-center h-64">
+  //         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
-  if (error) {
-    return (
-      <div className="editor panel">
-        <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-          {error}
-        </div>
-      </div>
-    );
-  }
+  // if (error) {
+  //   return (
+  //     <div className="editor panel">
+  //       <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+  //         {error}
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="editor panel">

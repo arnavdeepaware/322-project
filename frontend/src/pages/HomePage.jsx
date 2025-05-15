@@ -64,47 +64,49 @@ function HomePage() {
   }
 
   return (
-    <div className="home-page">
-      <main>
-        <div>Welcome, {username}</div>
-        <div className="panel blacklist-form">
-          <h2 className="title">Suggest a Blacklist Word</h2>
-          <form onSubmit={handleBlacklistRequest}>
-            <input type="text" name="word" />
-            <button type="submit">Submit</button>
-          </form>
-        </div>
-        <div className="panel">
-          <h2 className="title">Disputes</h2>
-        </div>
-        {user && (
-          <div className="panel">
-            <h2 className="title">Invites</h2>
-            <div>
-              {invitedDocs.map((doc) => (
-                <div key={doc.id} className="invite-entry">
-                  <b>{doc.title}</b>
-                  <span>-</span>
-                  <span className="username">{doc.owner}</span>
-                  <button onClick={() => handleAcceptInvite(doc.id)}>
-                    Accept
-                  </button>
-                  <button
-                    onClick={() => handleRejectInvite(doc.id)}
-                    className="reject-btn"
-                  >
-                    Reject
-                  </button>
-                </div>
-              ))}
-            </div>
+    invitedDocs && (
+      <div className="home-page">
+        <main>
+          <div>Welcome, {username}</div>
+          <div className="panel blacklist-form">
+            <h2 className="title">Suggest a Blacklist Word</h2>
+            <form onSubmit={handleBlacklistRequest}>
+              <input type="text" name="word" />
+              <button type="submit">Submit</button>
+            </form>
           </div>
-        )}
-        <div className="panel">
-          <h2 className="title">Respond to Disputes</h2>
-        </div>
-      </main>
-    </div>
+          <div className="panel">
+            <h2 className="title">Disputes</h2>
+          </div>
+          {user && (
+            <div className="panel">
+              <h2 className="title">Invites</h2>
+              <div>
+                {invitedDocs.map((doc) => (
+                  <div key={doc.id} className="invite-entry">
+                    <b>{doc.title}</b>
+                    <span>-</span>
+                    <span className="username">{doc.owner}</span>
+                    <button onClick={() => handleAcceptInvite(doc.id)}>
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => handleRejectInvite(doc.id)}
+                      className="reject-btn"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="panel">
+            <h2 className="title">Respond to Disputes</h2>
+          </div>
+        </main>
+      </div>
+    )
   );
 }
 
