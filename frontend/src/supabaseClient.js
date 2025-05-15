@@ -123,6 +123,17 @@ export async function incrementTokens(amount) {
   }
 }
 
+export async function deductTokensOnUser(userId, amount) {
+  const { error } = await supabase.rpc("deduct_tokens_on_user", {
+    user_id: userId,
+    amount: amount,
+  });
+
+  if (error) {
+    console.error("Failed to deduct tokens:", error.message);
+  }
+}
+
 export async function createDocument(userId, text, title) {
   const { data, error } = await supabase
     .from("documents")

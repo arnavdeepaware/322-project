@@ -6,7 +6,8 @@ import {
   getInvitesByUserId,
   getDocumentById,
   acceptInvite,
-  rejectInvite
+  rejectInvite,
+  deductTokensOnUser,
 } from "../supabaseClient";
 
 function HomePage() {
@@ -39,13 +40,23 @@ function HomePage() {
   }, [user, guest, loading]);
 
   function handleAcceptInvite(docId) {
-    acceptInvite(user.id, docId)
-    setInvitedDocs((docs) => docs.filter((doc) => doc.id !== docId))
+    acceptInvite(user.id, docId);
+    setInvitedDocs((docs) => docs.filter((doc) => doc.id !== docId));
   }
 
-  function handleRejectInvite(docId) {
-    rejectInvite(user.id, docId)
-    setInvitedDocs((docs) => docs.filter((doc) => doc.id !== docId))
+  async function handleRejectInvite(docId) {
+    await rejectInvite(user.id, docId); // wait for invite rejection
+    setInvitedDocs((docs) => docs.filter((doc) => doc.id !== docId));
+
+    const rejectedDoc = invitedDocs.find((doc) => doc.id === docId);
+    console.log("rejected doc is", rejectedDoc);
+    if (rejectedDoc) {
+      console.log("waiting for deduction of tokens");
+      await deductTokensOnUser(rejectedDoc.owner_id, 3); // wait for token deduction
+    } else {
+      console.error("Rejected document not found for docId:", docId);
+    }
+    console.log("deduction complete!");
   }
 
   function handleBlacklistRequest(e) {
@@ -72,20 +83,27 @@ function HomePage() {
           <h2 className="title">Disputes</h2>
         </div>
         {user && (
-        <div className="panel">
-          <h2 className="title">Invites</h2>
-          <div>
-            {invitedDocs.map((doc) => (
-              <div key={doc.id} className="invite-entry">
-                <b>{doc.title}</b>
-                <span>-</span>
-                <span className="username">{doc.owner}</span>
-                <button onClick={() => handleAcceptInvite(doc.id)}>Accept</button>
-                <button onClick={() => handleRejectInvite(doc.id)} className="reject-btn">Reject</button>
-              </div>
-            ))}
+          <div className="panel">
+            <h2 className="title">Invites</h2>
+            <div>
+              {invitedDocs.map((doc) => (
+                <div key={doc.id} className="invite-entry">
+                  <b>{doc.title}</b>
+                  <span>-</span>
+                  <span className="username">{doc.owner}</span>
+                  <button onClick={() => handleAcceptInvite(doc.id)}>
+                    Accept
+                  </button>
+                  <button
+                    onClick={() => handleRejectInvite(doc.id)}
+                    className="reject-btn"
+                  >
+                    Reject
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
         )}
         <div className="panel">
           <h2 className="title">Respond to Disputes</h2>
