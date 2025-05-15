@@ -11,26 +11,33 @@ import {
 } from "../supabaseClient";
 
 function HomePage() {
-  const { user, loading } = useUser();
+  const { user, loading, guest } = useUser();
   const [username, setUsername] = useState(null);
-  const [invitedDocs, setInvitedDocs] = useState(null);
+  const [invitedDocs, setInvitedDocs] = useState([]);
 
   useEffect(() => {
-    getUsernameById(user.id).then((uname) => setUsername(uname));
-    async function getInvitedDocs() {
-      const doc_ids = await getInvitesByUserId(user.id);
-      const docs = await Promise.all(
-        doc_ids.map(async (id) => {
-          const doc = await getDocumentById(id);
-          const owner = await getUsernameById(doc.owner_id);
-          return { ...doc, owner };
-        })
-      );
-      setInvitedDocs(docs);
+    if (loading) return;
+    if (user) {
+      // real user: fetch username and invites
+      getUsernameById(user.id).then((uname) => setUsername(uname));
+      async function fetchInvites() {
+        const doc_ids = await getInvitesByUserId(user.id);
+        const docs = await Promise.all(
+          doc_ids.map(async (id) => {
+            const doc = await getDocumentById(id);
+            const owner = await getUsernameById(doc.owner_id);
+            return { ...doc, owner };
+          })
+        );
+        setInvitedDocs(docs);
+      }
+      fetchInvites();
+    } else if (guest) {
+      // guest user: set placeholder
+      setUsername("Guest");
+      setInvitedDocs([]);
     }
-
-    getInvitedDocs();
-  }, []);
+  }, [user, guest, loading]);
 
   function handleAcceptInvite(docId) {
     acceptInvite(user.id, docId);
@@ -59,11 +66,10 @@ function HomePage() {
     e.target.word.value = "";
   }
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
+  if (loading) return <div>Loading...</div>;
 
   return (
+
     invitedDocs && (
       <div className="home-page">
         <main>
@@ -103,10 +109,15 @@ function HomePage() {
           )}
           <div className="panel">
             <h2 className="title">Respond to Disputes</h2>
+
           </div>
-        </main>
-      </div>
-    )
+        </div>
+        )}
+        <div className="panel">
+          <h2 className="title">Respond to Disputes</h2>
+        </div>
+      </main>
+    </div>
   );
 }
 

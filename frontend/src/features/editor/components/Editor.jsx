@@ -111,6 +111,7 @@ function Editor() {
   const [selfCorrectedWords, setSelfCorrectedWords] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
   const [blacklistWords, setBlacklistWords] = useState(null);
   const { user, guest, handleTokenChange } = useUser();
 
@@ -123,31 +124,36 @@ function Editor() {
     setShakesText(result);
   }
 
+  const { user, guest, handleTokenChange } = useUser();
+
+
   useEffect(() => {
-    async function getDocuments() {
+    async function fetchDocs() {
       try {
-        setLoading(true);
         const owned = await getDocumentsByUserId(user.id);
         const shared_ids = await getSharedDocumentIds(user.id);
         const shared = await Promise.all(
-          shared_ids.map(async (id) => {
-            const doc = await getDocumentById(parseInt(id, 10));
-            return doc;
-          })
+          shared_ids.map((id) => getDocumentById(id))
         );
-
-        setDocuments([...(owned || []), ...(shared || [])].filter(Boolean));
-      } catch (err) {
-        console.error('Error fetching documents:', err);
-        setError('Failed to load documents. Please try again.');
+        setDocuments([...owned, ...shared]);
+      } catch (e) {
+        console.error("Error fetching documents:", e);
+        setError("Failed to load documents");
       } finally {
         setLoading(false);
       }
     }
-
-    if (user?.id) {
-      getDocuments();
+    if (user) {
+      fetchDocs();
+    } else if (guest) {
+      setDocuments([]);
+      setLoading(false);
+    } else {
+      // no session
+      setDocuments([]);
+      setLoading(false);
     }
+
     
     getBlacklistWords().then((data) =>
       setBlacklistWords(data.map((entry) => entry.word))
@@ -182,10 +188,12 @@ function Editor() {
   const handleSubmit = async (text) => {
     setShakesText("");
 
+
     const censored = censorText(text, blacklistWords);
     handleTokenChange(-(censored.split("*").length - 1));
 
     const trimmed = censored.trim();
+
     const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
     // free guest users can only submit up to 20 words
     if (guest && wordCount > 20) {
