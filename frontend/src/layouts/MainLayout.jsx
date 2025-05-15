@@ -6,24 +6,26 @@ import { useUser } from "../context/UserContext";
 import { supabase } from "../supabaseClient";
 
 function Header() {
-  const { user, tokens } = useUser();
+  const { user, loading: userLoading, tokens } = useUser();
   const [isSuperUser, setIsSuperUser] = useState(false);
 
   useEffect(() => {
     async function checkSuperUser() {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        setIsSuperUser(user?.email === "arshanand2524@gmail.com");
-      } catch (error) {
-        console.error("Error checking superuser status:", error);
+      if (userLoading || !user) {
         setIsSuperUser(false);
+        return;
       }
+      const { data, error } = await supabase
+        .from("superusers")
+        .select("user_id")
+        .eq("user_id", user.id)
+        .single();
+      if (error) console.error("Superuser lookup error:", error.message);
+      setIsSuperUser(!!data);
+      console.log("Superuser status:", !!data);
     }
-
     checkSuperUser();
-  }, []);
+  }, [user, userLoading]);
 
   return (
     <header>

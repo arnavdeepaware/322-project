@@ -44,13 +44,7 @@ function SuperUserDashboard() {
 
   async function fetchUsers() {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user?.email !== 'arshanand2524@gmail.com' && user?.email !== 'hseam14@gmail.com' && user?.email !== 'aditya.jha2020123@gmail.cim') {
-        // setError('Unauthorized access');
-        return;
-      }
-
+      // fetch all users for superuser
       const { data, error } = await supabase
         .from('users')
         .select('*');
@@ -576,4 +570,4 @@ function SuperUserDashboard() {
   );
 }
 
-export default SuperUserDashboard; 
+export default SuperUserDashboard;
