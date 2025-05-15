@@ -207,13 +207,8 @@ function Editor() {
     let contentToSave;
 
     if (shakesText) {
-      contentToSave = segments
-        .map((segment) =>
-          segment.type === "normal" || segment.status !== "accepted"
-            ? segment.text
-            : segment.correction
-        )
-        .join("");
+      // save the shakesperized output directly
+      contentToSave = shakesText;
     } else if (mode === "llm") {
       contentToSave = segments
         .map((segment) =>
@@ -253,13 +248,8 @@ function Editor() {
     let contentToDownload;
 
     if (shakesText) {
-      contentToDownload = segments
-        .map((segment) =>
-          segment.type === "normal" || segment.status !== "accepted"
-            ? segment.text
-            : segment.correction
-        )
-        .join("");
+      // download the shakesperized output directly
+      contentToDownload = shakesText;
     } else if (mode === "llm") {
       contentToDownload = segments
         .map((segment) =>
