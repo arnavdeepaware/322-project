@@ -1,6 +1,7 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect } from "react";
 import { useUser } from "../../../context/UserContext";
 import { produce } from "immer";
+import { useNavigate } from "react-router";
 import TextBlock from "../../../components/TextBlock";
 import {
   censorText,
@@ -113,7 +114,8 @@ function Editor() {
   const [error, setError] = useState(null);
 
   const [blacklistWords, setBlacklistWords] = useState(null);
-  const { user, guest, handleTokenChange } = useUser();
+  const { user, guest, handleTokenChange, signOutGuest } = useUser();
+  const navigate = useNavigate();
 
   async function handleShakesperize(text) {
     setInput(text);
@@ -197,7 +199,12 @@ function Editor() {
     const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
     // free guest users can only submit up to 20 words
     if (guest && wordCount > 20) {
-      alert("Guest users may only submit up to 20 words.");
+      // block guest for 3 minutes
+      const blockUntil = Date.now() + 3 * 60 * 1000;
+      localStorage.setItem("guestBlockedUntil", blockUntil.toString());
+      alert("Guest users may only submit up to 20 words. You are locked out for 3 minutes.");
+      signOutGuest();
+      navigate("/login");
       return;
     }
     setInput(trimmed);
