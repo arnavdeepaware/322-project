@@ -1,21 +1,25 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import { supabase, getComplaints, resolveComplaint, manageUserTokens } from '../supabaseClient';
 
 function SuperUserDashboard() {
   const [users, setUsers] = useState([]);
   const [blacklistRequests, setBlacklistRequests] = useState([]);
   const [blacklistedWords, setBlacklistedWords] = useState([]);
+  const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('users');
   const [newWord, setNewWord] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [resolutions, setResolutions] = useState({});
+  const [tokenInputs, setTokenInputs] = useState({});
 
   useEffect(() => {
     fetchUsers();
     fetchBlacklistRequests();
     fetchBlacklistedWords();
+    fetchComplaints();
   }, []);
 
   // Clear success message after 3 seconds
@@ -42,8 +46,8 @@ function SuperUserDashboard() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
-      if (user?.email !== 'arshanand2524@gmail.com') {
-        setError('Unauthorized access');
+      if (user?.email !== 'arshanand2524@gmail.com' && user?.email !== 'hseam14@gmail.com' && user?.email !== 'aditya.jha2020123@gmail.cim') {
+        // setError('Unauthorized access');
         return;
       }
 
@@ -93,6 +97,17 @@ function SuperUserDashboard() {
     }
   }
 
+  async function fetchComplaints() {
+    try {
+      const data = await getComplaints();
+      if (data) {
+        setComplaints(data);
+      }
+    } catch (error) {
+      setError(error.message);
+    }
+  }
+
   async function handleDeleteUser(userId) {
     if (!window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
       return;
@@ -100,7 +115,8 @@ function SuperUserDashboard() {
 
     try {
       setLoading(true);
-      // First delete any document access entries
+      
+      // First delete all document access entries where the user is a collaborator or invited
       const { error: accessError } = await supabase
         .from('document_access')
         .delete()
@@ -108,7 +124,27 @@ function SuperUserDashboard() {
 
       if (accessError) throw accessError;
 
-      // Then delete any documents owned by the user
+      // Get all documents owned by the user
+      const { data: ownedDocs, error: fetchError } = await supabase
+        .from('documents')
+        .select('id')
+        .eq('owner_id', userId);
+
+      if (fetchError) throw fetchError;
+
+      // For each owned document, delete all document access entries
+      if (ownedDocs && ownedDocs.length > 0) {
+        for (const doc of ownedDocs) {
+          const { error: docAccessError } = await supabase
+            .from('document_access')
+            .delete()
+            .eq('document_id', doc.id);
+
+          if (docAccessError) throw docAccessError;
+        }
+      }
+
+      // Then delete all documents owned by the user
       const { error: docError } = await supabase
         .from('documents')
         .delete()
@@ -116,7 +152,7 @@ function SuperUserDashboard() {
 
       if (docError) throw docError;
 
-      // Delete the user from the users table using RPC
+      // Finally delete the user from the users table using RPC
       const { error: userError } = await supabase.rpc('delete_user', { user_id: userId });
 
       if (userError) throw userError;
@@ -205,6 +241,35 @@ function SuperUserDashboard() {
     }
   }
 
+  async function handleResolveComplaint(complaintId) {
+    try {
+      setLoading(true);
+      const result = await resolveComplaint(complaintId);
+      if (result) {
+        setSuccessMessage('Complaint resolved successfully');
+        fetchComplaints();
+      }
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleManageTokens(userId, amount) {
+    try {
+      setLoading(true);
+      await manageUserTokens(userId, amount);
+      setSuccessMessage(`Successfully ${amount > 0 ? 'added' : 'deducted'} ${Math.abs(amount)} tokens`);
+      setTokenInputs(prev => ({ ...prev, [userId]: '' })); // Clear input after successful operation
+      fetchUsers(); // Refresh the users list to show updated token balance
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const filteredUsers = users.filter(user => 
     user.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -217,6 +282,12 @@ function SuperUserDashboard() {
     word.word.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const filteredComplaints = complaints.filter(complaint => 
+    complaint.complainant_note?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    complaint.complainant?.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    complaint.respondent?.username?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   if (loading && !users.length) return (
     <div className="flex items-center justify-center min-h-screen">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
@@ -224,9 +295,9 @@ function SuperUserDashboard() {
   );
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 max-w-7xl mx-auto panel">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Super User Dashboard</h1>
+        <h1 className="text-3xl font-bold text-gray-800 title">Super User Dashboard</h1>
         <div className="space-y-2">
           {successMessage && (
             <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded">
@@ -242,7 +313,7 @@ function SuperUserDashboard() {
       </div>
       
       {/* Tabs */}
-      <div className="mb-6 border-b border-gray-200">
+      <div className="mb-6 border-b border-gray-200 panel">
         <ul className="flex -mb-px">
           <li className="mr-2">
             <button
@@ -268,14 +339,26 @@ function SuperUserDashboard() {
               Blacklist Management
             </button>
           </li>
+          <li className="mr-2">
+            <button
+              className={`inline-block p-4 text-lg font-medium ${
+                activeTab === 'complaints'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+              onClick={() => setActiveTab('complaints')}
+            >
+              Complaints
+            </button>
+          </li>
         </ul>
       </div>
 
       {/* Search Bar */}
-      <div className="mb-6">
+      <div className="mb-6 panel">
         <input
           type="text"
-          placeholder={`Search ${activeTab === 'users' ? 'users' : 'blacklisted words'}...`}
+          placeholder={`Search ${activeTab === 'users' ? 'users' : activeTab === 'blacklist' ? 'blacklisted words' : 'complaints'}...`}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -284,7 +367,7 @@ function SuperUserDashboard() {
 
       {/* Users Tab */}
       {activeTab === 'users' && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white rounded-lg shadow overflow-hidden panel">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -304,12 +387,36 @@ function SuperUserDashboard() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <button
-                        onClick={() => handleDeleteUser(user.id)}
-                        className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out transform hover:scale-105"
-                      >
-                        Delete
-                      </button>
+                      <div className="flex space-x-2 items-center">
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="number"
+                            value={tokenInputs[user.id] || ''}
+                            onChange={(e) => setTokenInputs(prev => ({ ...prev, [user.id]: e.target.value }))}
+                            placeholder="Amount"
+                            className="w-20 px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            min="1"
+                          />
+                          <button
+                            onClick={() => handleManageTokens(user.id, parseInt(tokenInputs[user.id] || '0'))}
+                            className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out transform hover:scale-105"
+                          >
+                            Add
+                          </button>
+                          <button
+                            onClick={() => handleManageTokens(user.id, -parseInt(tokenInputs[user.id] || '0'))}
+                            className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out transform hover:scale-105"
+                          >
+                            Deduct
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteUser(user.id)}
+                          className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out transform hover:scale-105"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -321,7 +428,7 @@ function SuperUserDashboard() {
 
       {/* Blacklist Tab */}
       {activeTab === 'blacklist' && (
-        <div className="space-y-8">
+        <div className="space-y-8 panel">
           {/* Blacklist Requests Section */}
           <div>
             <h2 className="text-xl font-semibold text-gray-800 mb-4">Pending Blacklist Requests</h2>
@@ -396,6 +503,72 @@ function SuperUserDashboard() {
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Complaints Tab */}
+      {activeTab === 'complaints' && (
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Complainant</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Respondent</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Complaint</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Response</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredComplaints.map((complaint) => (
+                  <tr key={complaint.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {new Date(complaint.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {complaint.complainant?.username || 'Unknown'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {complaint.respondent?.username || 'Unknown'}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      {complaint.complainant_note}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      {complaint.respondent_note || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        complaint.status === 'resolved' 
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {complaint.status || 'pending'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {complaint.status !== 'resolved' && complaint.respondent_note && (
+                        <div className="space-y-2">
+                          <button
+                            onClick={() => handleResolveComplaint(complaint.id)}
+                            className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out transform hover:scale-105"
+                          >
+                            Resolve
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filteredComplaints.length === 0 && (
+              <p className="text-gray-500 text-center py-4">No complaints found</p>
+            )}
           </div>
         </div>
       )}

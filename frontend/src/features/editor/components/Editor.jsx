@@ -4,6 +4,7 @@ import { produce } from "immer";
 import TextBlock from "../../../components/TextBlock";
 import EditorStats from './EditorStats';
 import { supabase } from "../../../supabaseClient"; // Add this import
+import { useNavigate } from "react-router-dom";
 import {
   censorText,
   fetchErrors,
@@ -14,6 +15,7 @@ import {
 import {
   getDocumentsByUserId,
   createDocument,
+  
   updateDocument,
   getSharedDocumentIds,
   getDocumentById,
@@ -102,7 +104,8 @@ function HighlightedText({ segments, selectedError }) {
 }
 
 function Editor() {
-  const { handleTokenChange, updateStatistics, user, guest } = useUser();
+  const { user, guest, handleTokenChange, signOutGuest, updateStatistics } = useUser();
+  const navigate = useNavigate();
   const [mode, setMode] = useState("llm");
   const [documents, setDocuments] = useState([]);
   const [selectedDocument, setSelectedDocument] = useState(null);
@@ -115,6 +118,11 @@ function Editor() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [blacklistWords, setBlacklistWords] = useState(null);
+  const [realtimeStats, setRealtimeStats] = useState({
+    editedTexts: 0,
+    usedTokens: 0,
+    corrections: 0
+  });
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -129,10 +137,47 @@ function Editor() {
     checkAuth();
   }, [user]);
 
+  useEffect(() => {
+    // Initial fetch
+    fetchUserStats();
+
+    // Set up real-time subscription
+    const channel = supabase
+      .channel('users_stats')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'users',
+          filter: `id=eq.${user?.id}`
+        },
+        () => {
+          fetchUserStats();
+        }
+      )
+      .subscribe();
+
+    // Refresh stats every 30 seconds as backup
+    const interval = setInterval(fetchUserStats, 30000);
+
+    return () => {
+      channel.unsubscribe();
+      clearInterval(interval);
+    };
+  }, [user?.id]);
+
   const handleShakesperize = async (text) => {
     try {
       setInput(text);
       const TOKEN_COST = 3;
+
+      if (guest) {
+        handleTokenChange(-TOKEN_COST);
+        const result = await fetchShakesperize(text);
+        setShakesText(result);
+        return;
+      }
 
       const { error } = await supabase.rpc('update_user_stats', {
         p_user_id: user.id,
@@ -143,10 +188,8 @@ function Editor() {
 
       if (error) throw error;
       
-      // Update local state
       handleTokenChange(-TOKEN_COST);
-      updateStatistics('usedTokens', TOKEN_COST);
-      updateStatistics('editedTexts', 1);
+      await fetchUserStats(); // Fetch latest stats after update
       
       const result = await fetchShakesperize(text);
       setShakesText(result);
@@ -186,6 +229,62 @@ function Editor() {
     );
   }, [user, guest]);
 
+  const fetchUserStats = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('edited_texts, used_tokens, corrections')
+        .eq('id', user.id)
+        .single();
+        
+      if (error) throw error;
+      
+      setRealtimeStats({
+        editedTexts: data.edited_texts || 0,
+        usedTokens: data.used_tokens || 0,
+        corrections: data.corrections || 0
+      });
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // Set up real-time subscription for stats updates
+    const channel = supabase
+      .channel(`stats-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'users',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          if (payload.new) {
+            setRealtimeStats({
+              editedTexts: payload.new.edited_texts || 0,
+              usedTokens: payload.new.used_tokens || 0,
+              corrections: payload.new.corrections || 0
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    // Initial fetch
+    fetchUserStats();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [user?.id]);
+
   function toggleMode(e) {
     const newMode = e.target.value;
     setMode(newMode);
@@ -213,6 +312,7 @@ function Editor() {
 
   const handleSubmit = async (text) => {
     try {
+      setShakesText("");
       const censored = censorText(text, blacklistWords);
       const trimmed = censored.trim();
       const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
@@ -220,38 +320,37 @@ function Editor() {
       const totalCost = censorCost + wordCount;
 
       if (guest && wordCount > 20) {
-        alert("Guest users may only submit up to 20 words.");
+        const blockUntil = Date.now() + 3 * 60 * 1000;
+        localStorage.setItem("guestBlockedUntil", blockUntil.toString());
+        alert("Guest users may only submit up to 20 words. You are locked out for 3 minutes.");
+        signOutGuest();
+        navigate("/login");
         return;
       }
 
-      // Update stats using the new function
-      const { error } = await supabase.rpc('update_user_stats', {
-        p_user_id: user.id,
-        p_used_tokens: totalCost,
-        p_edited_texts: 1,
-        p_corrections: 0
-      });
+      if (!guest) {
+        const { error } = await supabase.rpc('update_user_stats', {
+          p_user_id: user.id,
+          p_used_tokens: totalCost,
+          p_edited_texts: 1,
+          p_corrections: 0
+        });
 
-      if (error) throw error;
+        if (error) throw error;
+        updateStatistics('usedTokens', totalCost);
+        updateStatistics('editedTexts', 1);
+      }
 
-      // Update local state
       handleTokenChange(-totalCost);
-      updateStatistics('usedTokens', totalCost);
-      updateStatistics('editedTexts', 1);
+      setInput(trimmed);
 
-      // Process text based on mode
+      // Process based on mode
       if (mode === "llm") {
         const errors = await fetchErrors(text);
-        
-        console.log("Errors: ", errors.length);
-
-        if (
-          wordCount >= 10 &&
-          (errors.length === 0 ||
-            errors[0].correction.trim() == "No errors found." ||
-            errors[0].correction.trim() === text.trim())
-        ) {
-          console.log("Yer a genius Harry!");
+        if (wordCount >= 10 && 
+            (errors.length === 0 || 
+             errors[0].correction.trim() === "No errors found." || 
+             errors[0].correction.trim() === text.trim())) {
           handleTokenChange(3);
         }
         setSegments(getCorrectionSegments(trimmed, errors));
@@ -260,7 +359,7 @@ function Editor() {
         setSegments(getSelfCorrectionSegments(trimmed));
       }
     } catch (error) {
-      console.error('Error updating statistics:', error);
+      console.error('Error processing text:', error);
     }
   };
 
@@ -269,19 +368,17 @@ function Editor() {
       if (2 * selectedError + 1 >= segments.length) return;
       const TOKEN_COST = 1;
 
-      // Update user stats directly
-      const { error } = await supabase
-        .from('users')
-        .update({
-          tokens: supabase.raw('tokens - ?', [TOKEN_COST]),
-          used_tokens: supabase.raw('used_tokens + ?', [TOKEN_COST]),
-          corrections: supabase.raw('corrections + 1')
-        })
-        .eq('id', user.id);
+      // Update database
+      const { error } = await supabase.rpc('update_user_stats', {
+        p_user_id: user.id,
+        p_used_tokens: TOKEN_COST,
+        p_corrections: 1,
+        p_edited_texts: 0
+      });
 
       if (error) throw error;
 
-      // Update UI
+      // Update UI state
       setSegments((prev) =>
         produce(prev, (draft) => {
           draft[2 * selectedError + 1].status = "accepted";
@@ -289,8 +386,9 @@ function Editor() {
       );
       setSelectedError((prev) => prev + 1);
       handleTokenChange(-TOKEN_COST);
-      updateStatistics('usedTokens', TOKEN_COST);
-      updateStatistics('corrections', 1);
+      
+      // Fetch latest stats
+      fetchUserStats();
     } catch (error) {
       console.error('Error updating statistics:', error);
     }
@@ -511,7 +609,7 @@ function Editor() {
             </div>
           </div>
 
-          <EditorStats />
+          <EditorStats statistics={realtimeStats} />
         </div>
       </div>
 

@@ -7,7 +7,7 @@ import { supabase } from "../supabaseClient";
 import StatsPanel from "../components/StatsPanel";
 
 function Header() {
-  const { tokens, isPaid } = useUser();
+  const { user, tokens, isPaid } = useUser();
   const [isSuperUser, setIsSuperUser] = useState(false);
 
   useEffect(() => {

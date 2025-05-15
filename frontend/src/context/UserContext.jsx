@@ -15,8 +15,16 @@ export function UserProvider({ children }) {
     usedTokens: 0,
     corrections: 0
   });
+  const [guest, setGuest] = useState(
+    localStorage.getItem("isGuest") === "true"
+  );
 
   function handleTokenChange(k) {
+    if (tokens + k < 0) {
+      alert("Insufficient tokens! Please purchase more tokens to continue.");
+      window.location.href = "/tokens";
+      return;
+    }
     setTokens((prev) => prev + k);
     incrementTokens(k);
   }
@@ -52,14 +60,15 @@ export function UserProvider({ children }) {
   };
 
   function signInAsGuest() {
-    const now = Date.now();
-    const last = parseInt(localStorage.getItem("lastGuestLogin"));
-    // enforce 3-minute cooldown
-    // if (last && now - last < 3 * 60 * 1000) {
-    //   alert("Please wait a few minutes before signing in as guest again.");
-    //   return;
-    // }
-    localStorage.setItem("lastGuestLogin", now.toString());
+    // check if guest is blocked
+    const blockedUntil = parseInt(localStorage.getItem("guestBlockedUntil") || '0');
+    if (blockedUntil && Date.now() < blockedUntil) {
+      alert("You are locked out for 3 minutes.");
+      return;
+    }
+    // clear block on new guest login
+    localStorage.removeItem("guestBlockedUntil");
+    localStorage.setItem("isGuest", "true");
     setGuest(true);
     setUser(null);
     setLoading(false);
@@ -68,7 +77,7 @@ export function UserProvider({ children }) {
 
   function signOutGuest() {
     setGuest(false);
-    localStorage.removeItem("lastGuestLogin");
+    localStorage.removeItem("isGuest");
   }
 
   const fetchTokenBalance = async (userId) => {
@@ -149,6 +158,9 @@ export function UserProvider({ children }) {
       setUser(session?.user || null);
       setLoading(false);
 
+      // if logged in via OAuth, clear guest state
+      if (session?.user) signOutGuest();
+
       if (session?.user) {
         fetchTokenBalance(session.user.id);
         getUsernameById(session.user.id).then((uname) => setUsername(uname));
@@ -162,6 +174,8 @@ export function UserProvider({ children }) {
       (_event, session) => {
         setUser(session?.user || null);
         if (session?.user) {
+          // clear guest on real login
+          signOutGuest();
           fetchTokenBalance(session.user.id);
           getUsernameById(session.user.id).then((uname) => setUsername(uname));
         } else {
@@ -220,7 +234,24 @@ export function UserProvider({ children }) {
     isPaid,
   };
 
-  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
+return (
+  <UserContext.Provider
+    value={{
+      user,
+      username,
+      loading,
+      tokens,
+      guest,
+      isPaid,
+      statistics,
+      handleTokenChange,
+      signInAsGuest,
+      signOutGuest
+    }}
+  >
+    {children}
+  </UserContext.Provider>
+);
 }
 
 export const useUser = () => useContext(UserContext);
