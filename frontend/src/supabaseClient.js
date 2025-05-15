@@ -129,6 +129,23 @@ export async function incrementTokens(amount) {
 }
 
 export async function deductTokensOnUser(userId, amount) {
+  // First check current token balance
+  const { data: userData, error: fetchError } = await supabase
+    .from("users")
+    .select("tokens")
+    .eq("id", userId)
+    .single();
+
+  if (fetchError) {
+    console.error("Failed to fetch user tokens:", fetchError.message);
+    return false;
+  }
+
+  if (userData.tokens < amount) {
+    console.error("Insufficient tokens");
+    return false;
+  }
+
   const { error } = await supabase.rpc("deduct_tokens_on_user", {
     user_id: userId,
     amount: amount,
@@ -136,7 +153,10 @@ export async function deductTokensOnUser(userId, amount) {
 
   if (error) {
     console.error("Failed to deduct tokens:", error.message);
+    return false;
   }
+
+  return true;
 }
 
 export async function createDocument(userId, text, title) {

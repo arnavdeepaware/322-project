@@ -14,6 +14,11 @@ export function UserProvider({ children }) {
   );
 
   function handleTokenChange(k) {
+    if (tokens + k < 0) {
+      alert("Insufficient tokens! Please purchase more tokens to continue.");
+      window.location.href = "/tokens";
+      return;
+    }
     setTokens((prev) => prev + k);
     incrementTokens(k);
   }

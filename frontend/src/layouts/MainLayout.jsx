@@ -41,6 +41,9 @@ function Header() {
             <Link to="/documents">Documents</Link>
           </li>
 
+          <li>
+            <Link to="/complaints">Make a Complaint</Link>
+          </li>
           {isSuperUser && (
             <li>
               <Link
@@ -49,16 +52,6 @@ function Header() {
               >
                 Super User Dashboard
               </Link>
-            </li>
-          )}
-
-          <li>
-            <Link to="/complaints">Make a Complaint</Link>
-          </li>
-          {(user?.email === "hseam14@gmail.com" ||
-            user?.email === "arshanand2524@gmail.com") && (
-            <li>
-              <Link to="/superuser">Super User Dashboard</Link>
             </li>
           )}
         </ul>
