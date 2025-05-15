@@ -8,12 +8,17 @@ import {
   acceptInvite,
   rejectInvite,
   deductTokensOnUser,
+  getComplaintsByRespondentId,
+  respondToComplaint,
 } from "../supabaseClient";
 
 function HomePage() {
   const { user, loading, guest } = useUser();
   const [username, setUsername] = useState(null);
   const [invitedDocs, setInvitedDocs] = useState([]);
+  const [complaints, setComplaints] = useState([]);
+  const [selectedComplaint, setSelectedComplaint] = useState(null);
+  const [respondentNote, setRespondentNote] = useState("");
 
   useEffect(() => {
     if (loading) return;
@@ -32,16 +37,46 @@ function HomePage() {
         setInvitedDocs(docs);
       }
       fetchInvites();
+
+      async function fetchComplaints() {
+        const data = await getComplaintsByRespondentId(user.id);
+        if (data) setComplaints(data);
+      }
+
+      fetchComplaints();
     } else if (guest) {
       // guest user: set placeholder
       setUsername("Guest");
       setInvitedDocs([]);
+      setComplaints([]);
     }
   }, [user, guest, loading]);
 
   function handleAcceptInvite(docId) {
     acceptInvite(user.id, docId);
     setInvitedDocs((docs) => docs.filter((doc) => doc.id !== docId));
+  }
+
+  async function handleRespondToComplaint() {
+    if (!selectedComplaint || !respondentNote.trim()) return;
+
+    const success = await respondToComplaint(
+      selectedComplaint.id,
+      respondentNote.trim()
+    );
+
+    if (success) {
+      // Remove the complaint from the list
+      setComplaints((prev) =>
+        prev.filter((c) => c.id !== selectedComplaint.id)
+      );
+
+      // Clear input and selection
+      setRespondentNote("");
+      setSelectedComplaint(null);
+    } else {
+      alert("Failed to respond to the complaint. Please try again.");
+    }
   }
 
   async function handleRejectInvite(docId) {
@@ -68,40 +103,80 @@ function HomePage() {
 
   if (loading) return <div>Loading...</div>;
 
+  console.log(complaints);
   return (
     <div className="home-page">
       <main>
-          <div>Welcome, {username}</div>
-          <div className="panel blacklist-form">
-            <h2 className="title">Suggest a Blacklist Word</h2>
-            <form onSubmit={handleBlacklistRequest}>
-              <input type="text" name="word" />
-              <button type="submit">Submit</button>
-            </form>
-          </div>
-          {user && (
-            <div className="panel">
-              <h2 className="title">Invites</h2>
-              <div>
-                {invitedDocs.map((doc) => (
-                  <div key={doc.id} className="invite-entry">
-                    <b>{doc.title}</b>
-                    <span>-</span>
-                    <span className="username">{doc.owner}</span>
-                    <button onClick={() => handleAcceptInvite(doc.id)}>
-                      Accept
-                    </button>
-                    <button
-                      onClick={() => handleRejectInvite(doc.id)}
-                      className="reject-btn"
-                    >
-                      Reject
-                    </button>
-                  </div>
-                ))}
-              </div>
+        <div>Welcome, {username}</div>
+        <div className="panel blacklist-form">
+          <h2 className="title">Suggest a Blacklist Word</h2>
+          <form onSubmit={handleBlacklistRequest}>
+            <input type="text" name="word" />
+            <button type="submit">Submit</button>
+          </form>
+        </div>
+        {user && (
+          <div className="panel">
+            <h2 className="title">Invites</h2>
+            <div>
+              {invitedDocs.map((doc) => (
+                <div key={doc.id} className="invite-entry">
+                  <b>{doc.title}</b>
+                  <span>-</span>
+                  <span className="username">{doc.owner}</span>
+                  <button onClick={() => handleAcceptInvite(doc.id)}>
+                    Accept
+                  </button>
+                  <button
+                    onClick={() => handleRejectInvite(doc.id)}
+                    className="reject-btn"
+                  >
+                    Reject
+                  </button>
+                </div>
+              ))}
             </div>
-          )}
+          </div>
+        )}
+        {complaints && (
+          <div className="panel">
+            <h2 className="title">Respond to Complaints</h2>
+            <select
+              onChange={(e) => {
+                const selectedId = e.target.value;
+                if (selectedId === "") {
+                  setSelectedComplaint(null);
+                } else {
+                  const selected = complaints.find(
+                    (c) => String(c.id) === selectedId
+                  );
+                  setSelectedComplaint(selected || null);
+                }
+              }}
+            >
+              <option value="">Select a complaint</option>
+              {complaints.map((complaint) => (
+                <option key={complaint.id} value={complaint.id}>
+                  {complaint.id} - {complaint.complainant.username}
+                </option>
+              ))}
+            </select>
+            {selectedComplaint && (
+              <>
+                <div className="text-block-input">
+                  {selectedComplaint.complainant_note}
+                </div>
+                <textarea
+                  className="text-block-input"
+                  value={respondentNote}
+                  onChange={(e) => setRespondentNote(e.target.value)}
+                  placeholder="Write your response..."
+                />
+                <button onClick={handleRespondToComplaint}>Respond</button>
+              </>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );

@@ -38,7 +38,7 @@ function ComplaintsPage() {
               <option value="">Select User</option>
               {users.map(
                 (otherUser) =>
-                  otherUser.id !== user.id && (
+                  /* otherUser.id !== user.id */ true  && (
                     <option key={otherUser.id} value={otherUser.id}>
                       {otherUser.username}
                     </option>

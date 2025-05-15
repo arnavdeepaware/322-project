@@ -47,7 +47,7 @@ function SuperUserDashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user?.email !== 'arshanand2524@gmail.com') {
-        setError('Unauthorized access');
+        // setError('Unauthorized access');
         return;
       }
 
@@ -302,9 +302,9 @@ function SuperUserDashboard() {
   );
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 max-w-7xl mx-auto panel">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Super User Dashboard</h1>
+        <h1 className="text-3xl font-bold text-gray-800 title">Super User Dashboard</h1>
         <div className="space-y-2">
           {successMessage && (
             <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded">
@@ -320,7 +320,7 @@ function SuperUserDashboard() {
       </div>
       
       {/* Tabs */}
-      <div className="mb-6 border-b border-gray-200">
+      <div className="mb-6 border-b border-gray-200 panel">
         <ul className="flex -mb-px">
           <li className="mr-2">
             <button
@@ -362,7 +362,7 @@ function SuperUserDashboard() {
       </div>
 
       {/* Search Bar */}
-      <div className="mb-6">
+      <div className="mb-6 panel">
         <input
           type="text"
           placeholder={`Search ${activeTab === 'users' ? 'users' : activeTab === 'blacklist' ? 'blacklisted words' : 'complaints'}...`}
@@ -374,7 +374,7 @@ function SuperUserDashboard() {
 
       {/* Users Tab */}
       {activeTab === 'users' && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white rounded-lg shadow overflow-hidden panel">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -435,7 +435,7 @@ function SuperUserDashboard() {
 
       {/* Blacklist Tab */}
       {activeTab === 'blacklist' && (
-        <div className="space-y-8">
+        <div className="space-y-8 panel">
           {/* Blacklist Requests Section */}
           <div>
             <h2 className="text-xl font-semibold text-gray-800 mb-4">Pending Blacklist Requests</h2>
@@ -560,13 +560,6 @@ function SuperUserDashboard() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {complaint.status !== 'resolved' && (
                         <div className="space-y-2">
-                          <textarea
-                            value={resolutions[complaint.id] || ""}
-                            onChange={e => setResolutions(r => ({ ...r, [complaint.id]: e.target.value }))}
-                            placeholder="Enter response..."
-                            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            rows="3"
-                          />
                           <button
                             onClick={() => handleResolveComplaint(complaint.id)}
                             className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out transform hover:scale-105"

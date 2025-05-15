@@ -15,7 +15,7 @@ export async function signInWithGoogle() {
 }
 
 export async function getAllUsers() {
-  const { data, error } = await supabase.from("users").select("id, username");
+  const { data, error } = await supabase.from("users").select();
 
   if (error) {
     console.error("Error getting users:", error);
@@ -103,19 +103,19 @@ export async function getSharedDocumentIds(userId) {
 export async function getDocumentById(id) {
   try {
     const { data, error } = await supabase
-      .from('documents')
-      .select('*')
-      .eq('id', id)
+      .from("documents")
+      .select("*")
+      .eq("id", id)
       .maybeSingle();
 
     if (error) {
-      console.error('Error fetching document:', error);
+      console.error("Error fetching document:", error);
       return null;
     }
 
     return data;
   } catch (error) {
-    console.error('Error fetching document:', error);
+    console.error("Error fetching document:", error);
     return null;
   }
 }
@@ -341,34 +341,70 @@ export async function getBlacklistWords() {
 
 export async function getComplaints() {
   const { data, error } = await supabase
-    .from('complaints')
-    .select(`
+    .from("complaints")
+    .select(
+      `
       *,
       complainant:complainant_id(username),
       respondent:respondent_id(username)
-    `)
-    .order('created_at', { ascending: false });
+    `
+    )
+    .order("created_at", { ascending: false });
 
   if (error) {
-    console.error('Error fetching complaints:', error);
+    console.error("Error fetching complaints:", error);
     return null;
   }
 
   return data;
 }
 
+export async function getComplaintsByRespondentId(userId) {
+  const { data, error } = await supabase
+    .from("complaints")
+    .select(`
+      *,
+      complainant:users!complainant_id ( username )
+    `)
+    .eq("respondent_id", userId)
+    .eq("status", "unresolved")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching complaints for user:", error);
+    return null;
+  }
+
+  return data;
+}
+
+export async function respondToComplaint(complaintId, text) {
+  const { error } = await supabase
+    .from("complaints")
+    .update({ respondent_note: text })
+    .eq("id", complaintId);
+
+  if (error) {
+    console.error("Error responding to complaint:", error);
+    return false;
+  }
+
+  return true;
+}
+
+
 export async function resolveComplaint(complaintId, resolution) {
   const { data, error } = await supabase
-    .from('complaints')
-    .update({ 
-      status: 'resolved',
-      respondent_note: resolution
+    .from("complaints")
+    .update({
+      status: "resolved",
+      respondent_note: resolution,
     })
-    .eq('id', complaintId)
+    .eq("id", complaintId)
     .select();
 
   if (error) {
-    console.error('Error resolving complaint:', error);
+    console.error("Error resolving complaint:", error);
     return null;
   }
 

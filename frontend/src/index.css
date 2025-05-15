@@ -39,7 +39,7 @@ header {
 }
 
 header .logo .title {
-  font-size: large
+  font-size: large;
 }
 
 header .logo img {
@@ -85,6 +85,14 @@ button {
 button:active {
   transform: scale(0.95);
   box-shadow: inset 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+li {
+  list-style: none;
+}
+
+.flex {
+  display: flex;
 }
 
 .username {
@@ -150,4 +158,8 @@ button:active {
   border-radius: 10px;
   padding: 5px;
   outline: none;
+}
+
+.home-page .panel .text-block-input {
+  height: 10vh;
 }
