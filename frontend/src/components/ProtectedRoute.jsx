@@ -3,11 +3,12 @@ import { Navigate } from "react-router-dom";
 import { useUser } from "../context/UserContext";
 
 export default function ProtectedRoute({ children }) {
-  const { user, loading } = useUser();
+  const { user, guest, loading } = useUser();
 
   if (loading) return null;
 
-  if (!user) return <Navigate to="/login" replace />;
+  // allow real users or guests
+  if (!user && !guest) return <Navigate to="/login" replace />;
 
   return children;
 }
